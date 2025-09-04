@@ -12,7 +12,7 @@ export async function POST(req) {
 
     console.log("Login attempt for:", emailLower);
 
-    const user = await User.findOne({ e: emailLower }).select("+password");
+    const user = await User.findOne({ email: emailLower }).select("+password");
     if (!user) {
       console.log("User not found:", emailLower);
       return NextResponse.json(
