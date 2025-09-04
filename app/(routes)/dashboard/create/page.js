@@ -45,7 +45,7 @@ export default function CreateUser() {
         router.push("/login");
       } finally {
         setLoading(false);
-      }
+      } 
     }
     fetchUserRole();
   }, [router]);

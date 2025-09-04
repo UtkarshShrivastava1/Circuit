@@ -1,17 +1,16 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 export default function TaskUpdatePage() {
   const router = useRouter();
   const params = useParams();
   const taskId = params.taskId;
- 
-  // ✅ Fix projectName extraction - check your URL structure
-  const projectName = params.projectId || params.project; // Try both possible param names
+  const projectName = params.projectId || params.project;
 
   const [currentUser, setCurrentUser] = useState(null);
   const [task, setTask] = useState(null);
@@ -19,20 +18,20 @@ export default function TaskUpdatePage() {
   const [managers, setManagers] = useState([]);
   const [members, setMembers] = useState([]);
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [managerId, setManagerId] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [managerId, setManagerId] = useState('');
   const [memberIds, setMemberIds] = useState([]);
 
   const [tickets, setTickets] = useState([]);
   const [newTicket, setNewTicket] = useState({
-    issueTitle: "",
-    description: "",
-    assignedTo: "",
-    priority: "medium",
-    startDate: "",
-    dueDate: "",
-    tag: "other",
+    issueTitle: '',
+    description: '',
+    assignedTo: '',
+    priority: 'medium',
+    startDate: '',
+    dueDate: '',
+    tag: 'other',
   });
 
   const [loadingUser, setLoadingUser] = useState(true);
@@ -41,87 +40,57 @@ export default function TaskUpdatePage() {
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [submittingTask, setSubmittingTask] = useState(false);
   const [submittingTicket, setSubmittingTicket] = useState(false);
-  const [error, setError] = useState("");
-
-  // ✅ Debug logs only on mount and when critical values change
-  useEffect(() => {
-    console.log("🔍 Component initialized:");
-    console.log("- taskId:", taskId);
-    console.log("- projectName:", projectName);
-    console.log("- URL params:", params);
-    
-    // ✅ If projectName is still undefined, log the full URL for debugging
-    if (!projectName) {
-      console.log("❌ projectName is undefined. Current URL:", window.location.pathname);
-      console.log("Available params:", Object.keys(params));
-    }
-  }, []); // Only run once on mount
+  const [error, setError] = useState('');
 
   // ✅ Fetch current user session
   useEffect(() => {
     async function fetchCurrentUser() {
       try {
         setLoadingUser(true);
-        const res = await fetch("/api/auth/session");
+        const res = await fetch('/api/auth/session');
         if (!res.ok) {
-          router.push("/login");
+          router.push('/login');
           return;
         }
         const userData = await res.json();
         setCurrentUser(userData);
       } catch (e) {
-        console.error("❌ Error fetching user session:", e);
-        router.push("/login");
+        router.push('/login');
       } finally {
         setLoadingUser(false);
       }
     }
-
     fetchCurrentUser();
   }, [router]);
 
-  // ✅ Fetch task, participants, and tickets only after user is loaded
+  // ✅ Load task, participants (if possible), and tickets
   useEffect(() => {
-    if (!currentUser || !taskId) {
-      return;
-    }
+    if (!currentUser || !taskId) return;
 
-    // ✅ If no projectName, try to get it from the task data
     async function fetchTask() {
       try {
         setLoadingTask(true);
-        const token = localStorage.getItem("token");
-        
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-        
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No authentication token found');
         const res = await fetch(`/api/tasks/${taskId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` },
         });
-        
         if (!res.ok) {
           const errorData = await res.json();
-          throw new Error(errorData.error || "Failed to load task");
+          throw new Error(errorData.error || 'Failed to load task');
         }
-        
         const data = await res.json();
         setTask(data);
-        console.log("data in ticket  : ",data)
-        setTitle(data.title || "");
-        setDescription(data.description || "");
-        setMemberIds(data.assignees?.map((assignee) => assignee.user?._id || assignee.user || assignee._id || assignee) || []);
-        
-        // ✅ Try to get project info from task if projectName is missing
+        setTitle(data.title || '');
+        setDescription(data.description || '');
+        setMemberIds(
+          data.assignees?.map((assignee) => assignee.user?._id || assignee.user || assignee._id || assignee) || []
+        );
         if (!projectName && data.projectId) {
-          console.log("🔄 Fetching project info from task data...");
           fetchProjectFromId(data.projectId, token);
         }
       } catch (e) {
-        console.error("❌ Error loading task:", e);
-        setError(e.message || "Error loading task");
+        setError(e.message);
       } finally {
         setLoadingTask(false);
       }
@@ -131,77 +100,52 @@ export default function TaskUpdatePage() {
       try {
         setLoadingParticipants(true);
         const res = await fetch(`/api/projects/${projectName}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` },
         });
-        
-        if (!res.ok) {
-          console.log("⚠️ Could not fetch project by ID, skipping participants");
-          return;
-        }
-        
+        if (!res.ok) return;
         const project = await res.json();
         const parts = project.participants || [];
         setParticipants(parts);
-
         const mgrs = parts.filter((p) =>
-          ["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
+          ['admin', 'manager', 'project-manager'].includes(p.roleInProject?.toLowerCase())
         );
         const membs = parts.filter(
-          (p) => !["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
+          (p) => !['admin', 'manager', 'project-manager'].includes(p.roleInProject?.toLowerCase())
         );
-
         setManagers(mgrs);
         setMembers(membs);
       } catch (e) {
-        console.error("❌ Error fetching project by ID:", e);
+        console.error('Error fetching project by ID:', e);
       } finally {
         setLoadingParticipants(false);
       }
     }
 
     async function fetchParticipants() {
-      if (!projectName) {
-        console.log("⏭️ Skipping fetchParticipants - no projectName");
-        return;
-      }
-
+      if (!projectName) return;
       try {
         setLoadingParticipants(true);
-        const token = localStorage.getItem("token");
-        
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-        
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No authentication token found');
         const res = await fetch(`/api/projects/${encodeURIComponent(projectName)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` },
         });
-        
         if (!res.ok) {
           const errorData = await res.json();
-          throw new Error(errorData.error || "Failed to load project participants");
+          throw new Error(errorData.error || 'Failed to load participants');
         }
-        
         const project = await res.json();
-        
         const parts = project.participants || [];
         setParticipants(parts);
-
         const mgrs = parts.filter((p) =>
-          ["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
+          ['admin', 'manager', 'project-manager'].includes(p.roleInProject?.toLowerCase())
         );
         const membs = parts.filter(
-          (p) => !["admin", "manager", "project-manager"].includes(p.roleInProject?.toLowerCase())
+          (p) => !['admin', 'manager', 'project-manager'].includes(p.roleInProject?.toLowerCase())
         );
-
         setManagers(mgrs);
         setMembers(membs);
       } catch (e) {
-        console.error("❌ Error fetching participants:", e);
         setError(e.message);
       } finally {
         setLoadingParticipants(false);
@@ -211,90 +155,90 @@ export default function TaskUpdatePage() {
     async function fetchTickets() {
       try {
         setLoadingTickets(true);
-        const token = localStorage.getItem("token");
-        
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-        
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No authentication token found');
         const res = await fetch(`/api/tasks/${taskId}/tickets`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` },
         });
-
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.error || "Failed to load tickets");
         }
-        
         const data = await res.json();
         setTickets(data);
       } catch (e) {
-        console.error("❌ Error fetching tickets:", e);
-        // Don't set error for tickets - it's not critical
+        console.error('Error fetching tickets:', e);
       } finally {
         setLoadingTickets(false);
       }
     }
 
-    // ✅ Call fetch functions
     fetchTask();
     if (projectName) {
       fetchParticipants();
     }
     fetchTickets();
-  }, [currentUser, taskId, projectName]);
+  }, [currentUser, taskId, projectName, router]);
 
-  // ✅ Loading states
-  if (loadingUser) {
-    return <p className="text-center p-6">Loading user session...</p>;
-  }
-  
-  if (!currentUser) {
-    return <p className="text-center p-6">Please log in to continue.</p>;
-  }
-  
-  if (loadingTask) {
-    return <p className="text-center p-6">Loading task details...</p>;
-  }
-  
-  if (error) {
+  // Loading and error states
+  if (loadingUser)
     return (
-      <div className="text-center p-6">
-        <p className="text-red-600 mb-4">Error: {error}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Retry
-        </button>
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="animate-spin h-8 w-8 text-gray-500 dark:text-gray-400" />
       </div>
     );
-  }
+  if (!currentUser)
+    return (
+      <div className="p-6 text-center text-gray-900 dark:text-gray-200">
+        Please log in to continue.
+      </div>
+    );
+  if (loadingTask)
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="animate-spin h-8 w-8 text-gray-500 dark:text-gray-400" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="p-6 text-center text-red-600 dark:text-red-400">
+        <p className="mb-4">{error}</p>
+        <Button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          Retry
+        </Button>
+      </div>
+    );
 
-  // ✅ Show warning if no participants loaded
-  if (!loadingParticipants && participants.length === 0) {
-    console.log("⚠️ No participants loaded. This might affect assignee selection.");
-  }
+  // Helper function for member/manager selection
+  const renderParticipantOption = (p) => (
+    <option
+      key={p.userId || p._id}
+      value={p.userId || p._id}
+      className="text-gray-900 dark:text-gray-200"
+    >
+      {p.username || p.name || p.email} ({p.roleInProject})
+    </option>
+  );
 
+  // Update task handler
   async function handleTaskSubmit(e) {
     e.preventDefault();
-    setError("");
+    setError('');
     if (!title.trim() || !description.trim()) {
-      setError("Please fill in title and description.");
+      setError('Please fill in title and description.');
       return;
     }
-    
     setSubmittingTask(true);
     try {
-      const token = localStorage.getItem("token");
-      
+      const token = localStorage.getItem('token');
       const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PUT",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: title.trim(),
@@ -303,10 +247,9 @@ export default function TaskUpdatePage() {
           assignedBy: currentUser._id,
         }),
       });
-      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update task");
-      toast.success("Task updated!");
+      if (!res.ok) throw new Error(data.error || 'Failed to update task');
+      toast.success('Task updated!');
       setTask(data);
     } catch (e) {
       setError(e.message);
@@ -315,42 +258,48 @@ export default function TaskUpdatePage() {
     }
   }
 
+  // Member select handler
   function handleMemberChange(e) {
     const selected = Array.from(e.target.selectedOptions).map((opt) => opt.value);
     setMemberIds(selected);
   }
 
+  // Ticket input change handler
   function handleNewTicketChange(e) {
     const { name, value } = e.target;
     setNewTicket((prev) => ({ ...prev, [name]: value }));
   }
 
-async function createTicket(e) {
+  // Create ticket handler
+  async function createTicket(e) {
     e.preventDefault();
     if (!newTicket.issueTitle.trim()) {
-      setError("Issue title is required");
+      setError('Issue title is required');
       return;
     }
     setSubmittingTicket(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       const res = await fetch(`/api/tasks/${taskId}/tickets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(newTicket),
       });
-      if (!res.ok) throw new Error("Failed to create ticket");
+      if (!res.ok) throw new Error('Failed to create ticket');
       const data = await res.json();
-      toast.success("Ticket created successfully.");
+      toast.success('Ticket created successfully.');
       setTickets((prev) => [...prev, data.ticket]);
       setNewTicket({
-        issueTitle: "",
-        description: "",
-        assignedTo: "",
-        priority: "medium",
-        startDate: "",
-        dueDate: "",
-        tag: "other",
+        issueTitle: '',
+        description: '',
+        assignedTo: '',
+        priority: 'medium',
+        startDate: '',
+        dueDate: '',
+        tag: 'other',
       });
     } catch (err) {
       setError(err.message);
@@ -360,198 +309,241 @@ async function createTicket(e) {
     }
   }
 
-
-  const canAssignManager = currentUser?.role === "admin";
-  const canAssignMembers = ["admin", "manager"].includes(currentUser?.role);
+  const canAssignManager = currentUser?.role === 'admin';
+  const canAssignMembers = ['admin', 'manager'].includes(currentUser?.role);
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-900 rounded shadow space-y-6">
-      <h1 className="text-2xl font-bold">
-        Update Task {projectName ? `- ${projectName}` : ''}
+    <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md space-y-8">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-200">
+        {projectName ? `Manage Task – ${projectName}` : 'Manage Task'}
       </h1>
 
-      {/* ✅ Show warning if no participants */}
+      {/* Warning if participants not loaded */}
       {!loadingParticipants && participants.length === 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-800">
-          ⚠️ No project participants loaded. You may not be able to assign team members.
+        <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300">
+          No team members found. You may be unable to assign.
         </div>
       )}
 
+      {/* Loading participants */}
       {loadingParticipants && (
-        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-blue-800">
-          Loading project participants...
+        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300">
+          Loading team members...
         </div>
       )}
 
+      {/* Error message */}
+      {error && <p className="text-justify text-red-600 dark:text-red-400">{error}</p>}
+
+      {/* Task form */}
       <form onSubmit={handleTaskSubmit} className="space-y-4">
         <div>
-          <label className="block mb-1 font-semibold">Title</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Title
+          </label>
           <input
-            className="border rounded w-full px-3 py-2"
+            type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
+            className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
         <div>
-          <label className="block mb-1 font-semibold">Description</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Description
+          </label>
           <textarea
-            className="border rounded w-full px-3 py-2"
             rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
+            className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
         <div>
-          <label className="block mb-1 font-semibold">Assignees</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Assignees (hold Ctrl for multiple)
+          </label>
           <select
             multiple
-            className="border rounded w-full px-3 py-2 h-32"
             value={memberIds}
             onChange={handleMemberChange}
             disabled={!canAssignMembers}
+            className="w-full px-3 py-2 text-sm text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-32"
           >
-            {[...managers, ...members].map((m) => (
-              <option key={m.userId || m._id} value={m.userId || m._id}>
-                {m.username || m.name || m.email} ({m.roleInProject})
-              </option>
-            ))}
+            {[...managers, ...members].map(renderParticipantOption)}
           </select>
-          <small className="text-gray-500 mt-1">
-            Hold Ctrl / Cmd to select multiple assignees.
-          </small>
         </div>
-
-        <button
+        <Button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
           disabled={submittingTask}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg disabled:opacity-70"
         >
-          {submittingTask ? "Updating task..." : "Update Task"}
-        </button>
+          {submittingTask ? (
+            <>
+              <Loader2 className="animate-spin mr-2 h-5 w-5 inline" />
+              Updating...
+            </>
+          ) : (
+            'Update Task'
+          )}
+        </Button>
       </form>
 
-      {/* Tickets Section */}
+      {/* Tickets section */}
       <div className="mt-8">
-        <h2 className="text-xl font-bold mb-3">Tickets</h2>
-
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200 mb-4">Tickets</h2>
         {loadingTickets && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-blue-800">
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg">
             Loading tickets...
           </div>
         )}
+        {tickets.length === 0 && !loadingTickets && (
+          <p className="text-center text-gray-500 dark:text-gray-400">No tickets found.</p>
+        )}
+        <ul className="space-y-4">
+          {tickets.map((ticket) => (
+            <li
+              key={ticket._id || ticket.id}
+              className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow transition"
+            >
+              <div className="font-semibold text-gray-900 dark:text-gray-200">{ticket.issueTitle}</div>
+              <p className="text-sm flex mt-1 items-center space-x-2">
+                <span className="font-medium">Status:</span>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    ticket.status === 'pending'
+                      ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300'
+                      : 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300'
+                  }`}
+                >
+                  {ticket.status}
+                </span>
+              </p>
+              <p className="text-gray-700 dark:text-gray-300 mt-1">{ticket.description}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-400 mt-2">
+                Assigned to:{' '}
+                {ticket.assignedTo?.username || ticket.assignedTo?.name || ticket.assignedTo?.email || 'Unassigned'}
+              </p>
+            </li>
+          ))}
+        </ul>
 
-        {tickets.length === 0 && !loadingTickets && <p>No tickets yet.</p>}
-
-        {tickets.map((t) => (
-          <div
-            key={t._id || t.id}
-            className="border rounded p-4 mb-3 shadow-sm bg-gray-50 dark:bg-gray-800"
-          >
-            <strong>{t.issueTitle}</strong>{" "}
-            <span className="italic text-sm">[{t.status}]</span>
-            <p>{t.description}</p>
-            <p>
-             Assigned to: {t.assignedTo?.username || t.assignedTo?.name || t.assignedTo?.email || t.assignedTo?._id ||"Unassigned"}
-            </p>
+        {/* New ticket form */}
+        <form onSubmit={createTicket} className="mt-6 border-t pt-6 space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">Raise New Ticket</h3>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Issue Title (required)
+            </label>
+            <input
+              type="text"
+              name="issueTitle"
+              value={newTicket.issueTitle}
+              onChange={handleNewTicketChange}
+              className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
           </div>
-        ))}
-
-        {/* New Ticket Form */}
-        <form onSubmit={createTicket} className="mt-6 space-y-4 border-t pt-4">
-          <h3 className="text-lg font-semibold">Raise a New Ticket</h3>
-
-          <input
-            type="text"
-            name="issueTitle"
-            placeholder="Issue Title"
-            value={newTicket.issueTitle}
-            onChange={handleNewTicketChange}
-            className="border rounded w-full px-3 py-2"
-            required
-          />
-          
-          <textarea
-            name="description"
-            placeholder="Description"
-            rows={3}
-            value={newTicket.description}
-            onChange={handleNewTicketChange}
-            className="border rounded w-full px-3 py-2"
-          />
-
-          <select
-            name="assignedTo"
-            value={newTicket.assignedTo}
-            onChange={handleNewTicketChange}
-            className="border rounded w-full px-3 py-2"
-          >
-            <option value="">Assign To (optional)</option>
-            {[...managers, ...members].map((p) => (
-              <option key={p.userId || p._id} value={p.userId || p._id}>
-                {p.username || p.name || p.email} ({p.role})
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="priority"
-            value={newTicket.priority}
-            onChange={handleNewTicketChange}
-            className="border rounded w-full px-3 py-2"
-            required
-          >
-            <option value="low">Low Priority</option>
-            <option value="medium">Medium Priority</option>
-            <option value="high">High Priority</option>
-            <option value="urgent">Urgent</option>
-          </select>
-
-          <div className="flex gap-4">
-            <label className="flex-1">
-              Start Date{" "}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={newTicket.description}
+              onChange={handleNewTicketChange}
+              rows={3}
+              className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Assign To
+            </label>
+            <select
+              name="assignedTo"
+              value={newTicket.assignedTo}
+              onChange={handleNewTicketChange}
+              className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select (optional)</option>
+              {[...managers, ...members].map(renderParticipantOption)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Priority
+            </label>
+            <select
+              name="priority"
+              value={newTicket.priority}
+              onChange={handleNewTicketChange}
+              required
+              className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="low">Low Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="high">High Priority</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Start Date
+              </label>
               <input
                 type="date"
                 name="startDate"
                 value={newTicket.startDate}
                 onChange={handleNewTicketChange}
-                className="border rounded w-full px-2 py-1 mt-1"
+                className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </label>
-
-            <label className="flex-1">
-              Due Date{" "}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Due Date
+              </label>
               <input
                 type="date"
                 name="dueDate"
                 value={newTicket.dueDate}
                 onChange={handleNewTicketChange}
-                className="border rounded w-full px-2 py-1 mt-1"
+                className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </label>
+            </div>
           </div>
-
-          <select
-            name="tag"
-            value={newTicket.tag}
-            onChange={handleNewTicketChange}
-            className="border rounded w-full px-3 py-2"
-          >
-            <option value="bug">Bug</option>
-            <option value="development">Development</option>
-            <option value="other">Other</option>
-          </select>
-
-          <button
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Tag
+            </label>
+            <select
+              name="tag"
+              value={newTicket.tag}
+              onChange={handleNewTicketChange}
+              className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="bug">Bug</option>
+              <option value="development">Development</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <Button
             type="submit"
             disabled={submittingTicket}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-60"
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg disabled:opacity-70"
           >
-            {submittingTicket ? "Creating Ticket..." : "Raise Ticket"}
-          </button>
+            {submittingTicket ? (
+              <>
+                <Loader2 className="animate-spin mr-2 h-5 w-5 inline" />
+                Creating...
+              </>
+            ) : (
+              'Raise Ticket'
+            )}
+          </Button>
         </form>
       </div>
 

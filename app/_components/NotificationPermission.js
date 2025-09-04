@@ -1,70 +1,61 @@
 "use client";
-// import { useEffect, useRef, useState } from "react";
-// import { getMessaging, getToken } from "firebase/messaging";
-// import { auth } from "@/lib/firebase";
-// import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useState } from "react";
 
 const NotificationPermission = () => {
-  // const registrationRef = useRef(null);
-  // const [isRegistered, setIsRegistered] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
-  // useEffect(() => {
-  //   const registerServiceWorkerAndRequestToken = async (user) => {
-  //     try {
-  //       if (!registrationRef.current) {
-  //         registrationRef.current = await navigator.serviceWorker.register(
-  //           "/firebase-messaging-sw.js"
-  //         );
-  //       }
+  useEffect(() => {
+    // Fetch current logged-in user email from your session API
+    const fetchUserEmail = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const data = await res.json();
+          return data.email || null;
+        }
+      } catch (error) {
+        console.error("Failed to fetch user session", error);
+      }
+      return null;
+    };
 
-  //       const messaging = getMessaging();
-  //       const permission = await Notification.requestPermission();
 
-  //       if (permission === "granted") {
-  //         const fcmToken = await getToken(messaging, {
-  //           vapidKey:
-  //             "BJDlK88EZFINwvRvsoze11NcYHC_pbQ8SX5faZUqfYxO77m8IiBs_ZBgmuACiy-XDMMdAtYqCZxTrZjDAs09qlE",
-  //           serviceWorkerRegistration: registrationRef.current,
-  //         });
+    const requestAndSavePermission = async (userEmail) => {
+      if (!userEmail) return;
 
-  //         if (fcmToken) {
-  //           // Call your backend API to store token in MongoDB
-  //           // F:\Projects\Circuit\TaskZ\app\(routes)\dashboard\notifications
-  //           await fetch("/api/notifications", {
-  //             method: "POST",
-  //             headers: {
-  //               "Content-Type": "application/json",
-  //             },
-  //             body: JSON.stringify({
-  //               email: user.email,
-  //               token: fcmToken,
-  //             }),
-  //           });
-  //         } else {
-  //           console.log("No FCM token received.");
-  //         }
-  //       } else {
-  //         console.log("Notification permission denied.");
-  //       }
+      try {
+        if ("Notification" in window && !isRegistered) {
+          const permission = await Notification.requestPermission();
 
-  //       setIsRegistered(true);
-  //     } catch (error) {
-  //       console.error("Error requesting permission or storing token:", error);
-  //     }
-  //   };
+          if (permission === "granted") {
+            await fetch("/api/notificationsPermission", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: userEmail,
+                notificationPermission: permission, // expected to be 'granted'
+                time: new Date().toISOString(),
+              }),
+            });
+          } else {
+            console.log("Notification permission denied.");
+          }
 
-  //   const unsubscribeFromAuth = onAuthStateChanged(auth, (user) => {
-  //     if (user && !isRegistered) {
-  //       registerServiceWorkerAndRequestToken(user);
-  //     }
-  //   });
+          setIsRegistered(true);
+        }
+      } catch (error) {
+        console.error("Error requesting notification permission or saving to MongoDB:", error);
+      }
+    };
 
-  //   return () => {
-  //     if (unsubscribeFromAuth) unsubscribeFromAuth();
-  //   };
-  // }, [isRegistered]);
+    if (!isRegistered) {
+      fetchUserEmail().then((email) => requestAndSavePermission(email));
+    }
+  }, [isRegistered]);
 
-  // return null;
+  return null;
 };
 
 export default NotificationPermission;

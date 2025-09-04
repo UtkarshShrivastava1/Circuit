@@ -1,235 +1,217 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated }) {
-  // console.log(projectId, currentUser, onTaskCreated)
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [participants, setParticipants] = useState([]);
   const [assigneeIds, setAssigneeIds] = useState([]);
-  const [priority, setPriority] = useState("medium"); // 🔹 from model
-  const [estimatedHours, setEstimatedHours] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState('medium');
+  const [estimatedHours, setEstimatedHours] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const router = useRouter();
 
   useEffect(() => {
-  async function fetchParticipants() {
-    try {
-      setError("");
-      const res = await fetch(`/api/projects/${projectId}`);
-      if (!res.ok) throw new Error("Failed to load project participants");
-      const project = await res.json();
-      console.log(project.participants);
-      
-      const participants = project.participants || [];
-      setParticipants(participants);
-      
-      // ✅ Access role for each participant
-      participants.forEach((participant, index) => {
-        console.log(`Participant ${index}:`);
-        console.log(`- Email: ${participant.email}`);
-        console.log(`- Role: ${participant.roleInProject}`);           // ✅ Access role
-        console.log(`- Responsibility: ${participant.responsibility}`);
-        console.log(`- ID: ${participant._id}`);
-      });
-      
-      // ✅ Or get specific roles
-      const projectManagers = participants.filter(p => p.roleInProject === "project-manager");
-      const projectMembers = participants.filter(p => p.roleInProject === "project-member");
-      
-      console.log("Project Managers:", projectManagers.map(p => ({
-        email: p.email,
-        role: p.roleInProject
-  // ✅ Access role
-      })));
-      
-      console.log("Project Members:", projectMembers.map(p => ({
-        email: p.email, 
-        role: p.roleInProject
-  // ✅ Access role
-      })));
-      
-    } catch (e) {
-      setError(e.message);
-      setParticipants([]);
+    async function fetchParticipants() {
+      try {
+        setError('');
+        const res = await fetch(`/api/projects/${projectId}`);
+        if (!res.ok) throw new Error('Failed to load project participants');
+        const project = await res.json();
+        setParticipants(project.participants || []);
+      } catch (e) {
+        setError(e.message);
+        setParticipants([]);
+      }
     }
-  }
-  if (projectId) fetchParticipants();
-}, [projectId]);
+    if (projectId) fetchParticipants();
+  }, [projectId]);
 
-
- async function handleSubmit(e) {
-  e.preventDefault();
-  setError("");
-
-  try {
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
     if (!title.trim() || !description.trim()) {
-      setError("Please fill in both title and description.");
+      setError('Please fill in both title and description.');
       return;
     }
     if (assigneeIds.length === 0) {
-      setError("Please select at least one person to assign this task.");
+      setError('Please select at least one assignee.');
       return;
     }
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setError("Authentication required");
-      router.push("/login");
-      return;
-    }
+    const token = localStorage.getItem('token');
+    if (!token) return router.push('/login');
 
     setSubmitting(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        projectId,
+        projectName,
+        userId: currentUser._id,
+        assignees: assigneeIds.map(id => ({ user: id, state: 'assigned' })),
+        priority,
+        estimatedHours,
+        dueDate,
+      };
 
-    // ✅ Convert assigneeIds into required format
-    const payload = {
-      title: title.trim(),
-      description: description.trim(),
-      projectId,
-      projectName,   // Include projectName in your task creation payload
-      userId: currentUser._id,
-      assignees: assigneeIds.map((id) => ({
-        user: id,
-        state: "assigned",
-      })),
-    };
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-    console.log("Sending task payload:", payload);
+      if (!res.ok) throw new Error('Failed to create task');
 
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json();
-    console.log("Task form data : ",data)
-
-    if (!res.ok) {
-      console.error("Server error:", data);
-      throw new Error(data.error || "Failed to create task");
+      toast.success('Task created successfully!');
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+      setEstimatedHours('');
+      setDueDate('');
+      setAssigneeIds([]);
+      onTaskCreated?.();
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+      toast.error(err.message || 'Failed to create task');
+    } finally {
+      setSubmitting(false);
     }
-
-    toast.success("Task created successfully!");
-    setTitle("");
-    setDescription("");
-    setAssigneeIds(["projectManagers","projectMembers"]);
-    onTaskCreated?.();
-  } catch (err) {
-    console.error("Task creation error:", err);
-    setError(err.message || "Something went wrong");
-    toast.error(err.message || "Failed to create task");
-  } finally {
-    setSubmitting(false);
   }
-}
-
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4 p-4 border rounded bg-gray-50"
-    >
-      <h2 className="text-xl font-bold">Create Task</h2>
-      {error && <p className="text-red-600">{error}</p>}
+    <div className="max-w-lg mx-auto p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg">
+      <h2 className="text-2xl font-semibold mb-6 text-center text-gray-900 dark:text-white">
+        Create Task
+      </h2>
 
-      {/* Title */}
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Task title"
-        required
-        className="border rounded w-full px-3 py-2"
-      />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="mt-1 text-red-600">{error}</div>}
 
-      {/* Description */}
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Task description"
-        rows={4}
-        required
-        className="border rounded w-full px-3 py-2"
-      />
- 
-      {/* Priority */}
-      <label className="block font-semibold mb-1">Priority</label>
-      <select
-        value={priority}
-        onChange={(e) => setPriority(e.target.value)}
-        className="border rounded w-full px-3 py-2"
-      >
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="high">High</option>
-        <option value="urgent">Urgent</option>
-      </select>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Title
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Task title"
+            required
+            className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-      {/* Estimated Hours */}
-      <input
-        type="number"
-        value={estimatedHours}
-        onChange={(e) => setEstimatedHours(e.target.value)}
-        placeholder="Estimated hours"
-        min="1"
-        className="border rounded w-full px-3 py-2"
-      />
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Description
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Task description"
+            rows={4}
+            required
+            className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-24"
+          />
+        </div>
 
-      {/* Due Date */}
-      <input
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-        className="border rounded w-full px-3 py-2"
-      />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Priority
+            </label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
 
-      {/* Assignees */}
-      <label className="block font-semibold mb-1">Assign Task To</label>
-      <select
-        multiple
-        value={assigneeIds}
-        onChange={(e) =>
-          setAssigneeIds(Array.from(e.target.selectedOptions).map((o) => o.value))
-        }
-        className="border rounded w-full px-3 py-2 h-36"
-        required
-      >
-        {participants.length === 0 && (
-          <option disabled>No participants in project</option>
-        )}
-        {participants
-          .filter((p) => (p.userId || p._id) !== currentUser._id)
-          .map((p) => (
-            <option key={p.userId || p._id} value={p.userId || p._id}>
-              {p.username || p.name || p.email} ({p.roleInProject})
-            </option>
-          ))}
-      </select>
-      <small className="text-gray-500">
-        Hold Ctrl / Cmd to select multiple participants.
-      </small>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Estimated Hours
+            </label>
+            <input
+              type="number"
+              value={estimatedHours}
+              onChange={(e) => setEstimatedHours(e.target.value)}
+              placeholder="Estimated hours"
+              min="1"
+              className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-      >
-        {submitting ? "Creating..." : "Create Task"}
-      </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Due Date
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Assign Task To
+          </label>
+          <select
+            multiple
+            value={assigneeIds}
+            onChange={(e) =>
+              setAssigneeIds(
+                Array.from(e.target.selectedOptions, (o) => o.value)
+              )
+            }
+            required
+            className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-36"
+          >
+            {participants.length === 0 ? (
+              <option disabled>No participants in project</option>
+            ) : (
+              participants.map((p) => (
+                <option key={p.userId || p._id} value={p.userId || p._id}>
+                  {p.username || p.name || p.email} ({p.roleInProject})
+                </option>
+              ))
+            )}
+          </select>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Hold Ctrl/Cmd to select multiple participants.
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Creating...' : 'Create Task'}
+        </button>
+      </form>
 
       <ToastContainer />
-    </form>
+    </div>
   );
 }
