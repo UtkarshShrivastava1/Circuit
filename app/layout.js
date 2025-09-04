@@ -8,9 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "Circuit",
-  description: "Start your journey with Zager Digital Services since 2017",
+  description: "",
   icons: {
-    icon: "/IMG_1570.PNG?v=2", // ✅ cache-busting query
+    icon: "/IMG_1570.PNG?v=2",
     shortcut: "/IMG_1570.PNG?v=2",
     apple: "/IMG_1570.PNG?v=2",
   },

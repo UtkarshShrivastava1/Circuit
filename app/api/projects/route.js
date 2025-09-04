@@ -115,7 +115,7 @@ export async function POST(req) {
       manager: managerId,
       participants: participants.map((p) => ({
         userId: p.userId,
-        email: p.email.toLowerCase(), // normalize email for consistent filtering
+        email: p.email.toLowerCase(),
         username: p.username,
         roleInProject: p.roleInProject,
         responsibility: p.responsibility,
@@ -139,7 +139,6 @@ export async function POST(req) {
 export async function GET(req) {
   await dbConnect();
   try {
-    // Extract token from Authorization header
     const authHeader = req.headers.get("authorization");
     console.log("Auth Header received:", authHeader);
 
