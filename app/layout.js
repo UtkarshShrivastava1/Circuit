@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "Circuit",
-  description: "",
+  description: "Employee Management System by Zager Digital Services",
   icons: {
     icon: "/IMG_1570.PNG?v=2",
     shortcut: "/IMG_1570.PNG?v=2",
@@ -18,7 +18,7 @@ export const metadata = {
     "Zager Digital Services",
     "ZagerStream",
     "Circuit",
-    "Healthcare",
+    "Office ERP",
     "Technology",
   ],
 };
