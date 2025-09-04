@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import dbConnect from '@/lib/mongodb';
-import User from '@/app/models/User';
-import { signToken } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import dbConnect from "@/lib/mongodb";
+import User from "@/app/models/User";
+import { signToken } from "@/lib/auth";
 
 export async function POST(req) {
   try {
@@ -10,19 +10,19 @@ export async function POST(req) {
     const { email, password } = await req.json();
     const emailLower = email.trim().toLowerCase();
 
-    console.log('Login attempt for:', emailLower);
+    console.log("Login attempt for:", emailLower);
 
-    const user = await User.findOne({ email: emailLower }).select('+password');
+    const user = await User.findOne({ e: emailLower }).select("+password");
     if (!user) {
-      console.log('User not found:', emailLower);
+      console.log("User not found:", emailLower);
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    if (user.profileState !== 'active') {
-      console.log('Account not active:', user.profileState);
+    if (user.profileState !== "active") {
+      console.log("Account not active:", user.profileState);
       return NextResponse.json(
         { error: `Your account is ${user.profileState}. Contact support.` },
         { status: 403 }
@@ -31,9 +31,9 @@ export async function POST(req) {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      console.log('Password mismatch for:', emailLower);
+      console.log("Password mismatch for:", emailLower);
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -46,7 +46,7 @@ export async function POST(req) {
     };
 
     const token = signToken(tokenPayload);
-    console.log('Generated token for:', user.email);
+    console.log("Generated token for:", user.email);
 
     return NextResponse.json({
       success: true,
@@ -60,9 +60,9 @@ export async function POST(req) {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     return NextResponse.json(
-      { error: 'Authentication failed' },
+      { error: "Authentication failed" },
       { status: 500 }
     );
   }
