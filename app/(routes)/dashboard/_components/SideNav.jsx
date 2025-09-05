@@ -43,29 +43,26 @@ function SideNav({ setIsMobileSidebarOpen }) {
      { id: 1, name: "My Projects", path: "/dashboard", icon: <FaCopy className="text-xl" /> },
     { id: 2, name: "All Projects", path: "/dashboard/projects", icon: <RiFolderChartFill className="text-xl" /> },
     { id: 3, name: "Notifications", path: "/dashboard/notifications", icon: <MdNotifications className="text-xl" /> },
+        { id: 5, name: "Attendance", path: "/dashboard/attendance-management", icon: <BsClipboardCheck className="text-xl" /> },
     { id: 4, name: "Members", path: "/dashboard/profiles", icon: <HiMiniUserGroup className="text-xl" /> },
     { id: 7, name: "Manage Tasks", path: "/dashboard/manage-tasks", icon: <RiFolderChartFill className="text-xl" /> },
     
+    
   ];
 
-  // Only for member and manager
-  const attendanceMenu = [
-    { id: 5, name: "Mark Attendance", path: "/dashboard/attendance", icon: <BsCalendarCheck className="text-xl" /> },
-   
-  ];
 
   // Manager and admin only
   const managerMenu = [
-    { id: 6, name: "Attendance", path: "/dashboard/attendance-management", icon: <BsClipboardCheck className="text-xl" /> },
+    
     { id: 8, name: "Create Project", path: "/dashboard/create-project", icon: <FaFileCirclePlus className="text-xl" /> },
     { id: 9, name: "Add New User", path: "/dashboard/create", icon: <ImUserPlus className="text-xl" /> },
   ];
 
   // Build menu list based on user role
   let menuList = [...baseMenu];
-  if (userRole === "member") menuList = [...baseMenu, ...attendanceMenu];
-  if (userRole === "manager") menuList = [...baseMenu, ...attendanceMenu, ...managerMenu];
-  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu];
+  if (userRole === "member") menuList = [...baseMenu, ];
+  if (userRole === "manager") menuList = [...baseMenu,  ...managerMenu];
+  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu,];
 
   // Loading state
   if (loading) {
@@ -92,7 +89,7 @@ function SideNav({ setIsMobileSidebarOpen }) {
     <nav className="h-full min-h-screen flex flex-col p-4 border bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
       {/* Logo & headline */}
       <div className="py-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3 justify-center">
+        <div className="flex items-center gap-3 ml-3">
           <Image
             src={"/Logo.jpeg"}
             className="rounded-full object-cover"
@@ -101,7 +98,11 @@ function SideNav({ setIsMobileSidebarOpen }) {
             height={40}
             priority
           />
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Circuit</h1>
+          <h1 
+            style={{ fontFamily: 'Big Shoulders Stencil, cursive' }}
+            className="text-xl font-bold text-gray-800 dark:text-white">
+            Circuit
+          </h1>
         </div>
       </div>
 
@@ -121,6 +122,7 @@ function SideNav({ setIsMobileSidebarOpen }) {
       </div>
     </nav>
   );
+
 }
 
 export default SideNav;
