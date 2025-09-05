@@ -5,9 +5,9 @@ import { authenticate } from "@/lib/middleware/authenticate";
 import { checkRole } from "@/lib/middleware/checkRole";
 import { verifyAuth } from "@/lib/auth";
 
+
 // 🔹 POST → Create ticket (only admin/manager)
 // /app/api/tasks/[taskId]/tickets/route.js
-
 
 export async function POST(req, { params }) {
   const { taskId } = params;
@@ -29,13 +29,18 @@ export async function POST(req, { params }) {
       description,
       assignedTo = null,
       priority = "medium",
-      startDate = null,
-      dueDate = null,
+      estimatedHours = 0,
       tag = "other"
     } = body;
 
     if (!issueTitle || typeof issueTitle !== "string") {
       return NextResponse.json({ error: "Issue title is required" }, { status: 400 });
+    }
+
+    // Validate and ensure estimatedHours is a number
+    let estimatedHoursNum = Number(estimatedHours);
+    if (isNaN(estimatedHoursNum) || estimatedHoursNum < 0) {
+      return NextResponse.json({ error: "Estimated hours must be a non-negative number" }, { status: 400 });
     }
 
     await dbConnect();
@@ -50,8 +55,7 @@ export async function POST(req, { params }) {
       description: description?.trim() || "",
       assignedTo: assignedTo ? assignedTo : null,
       priority,
-      startDate: startDate ? new Date(startDate) : null,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      estimatedHours: estimatedHoursNum,
       tag,
       comments: [],
       createdAt: new Date(),
@@ -62,7 +66,6 @@ export async function POST(req, { params }) {
     await task.save();
 
     const addedTicket = task.tickets[task.tickets.length - 1].toObject();
-    console.log("addedTicket: " , addedTicket )
     return NextResponse.json({ ticket: addedTicket }, { status: 201 });
   } catch (error) {
     console.error("Error creating ticket:", error);
@@ -78,7 +81,7 @@ export async function POST(req, { params }) {
 export async function GET(req, { params }) {
   await dbConnect();
   const { taskId } = params;
-  console.log(taskId);
+ 
 
   try {
     const user = await authenticate(req);
@@ -87,6 +90,8 @@ export async function GET(req, { params }) {
     const task = await Task.findById(taskId)
       .populate("tickets.assignedTo")
       // .populate("tickets.createdBy");
+
+      // console.log("task: ", task);
 
     if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
@@ -100,7 +105,9 @@ export async function GET(req, { params }) {
       if (task.assignedTo.toString() !== user._id.toString()) {
         return NextResponse.json({ error: "Forbidden: Not your task" }, { status: 403 });
       }
+      console.log("Member accessing tickets for their task" , task.tickets);
       return NextResponse.json(task.tickets, { status: 200 });
+
     }
 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -141,22 +148,26 @@ export async function PUT(req, { params }) {
   }
 }
 
-// 🔹 DELETE → Remove a ticket (admin only)
+// Delete a ticket (admin only)
 export async function DELETE(req, { params }) {
   await dbConnect();
   const { taskId } = params;
-  const { ticketId } = await req.json();
-
+  const { ticketId } = params;
+  
+console.log("Deleting ticket:", ticketId, "from task:", taskId);
   try {
     const user = await authenticate(req);
+    console.log("Authenticated user:", user);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const roleCheck = checkRole(user, "admin");
+     console.log("Role check:", roleCheck);
     if (!roleCheck.ok) {
       return NextResponse.json({ error: roleCheck.message }, { status: roleCheck.status });
     }
 
     const task = await Task.findById(taskId);
+     console.log("Fetched task:", task);
     if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
     const ticket = task.tickets.id(ticketId);
@@ -171,3 +182,4 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ error: "Failed to delete ticket" }, { status: 500 });
   }
 }
+

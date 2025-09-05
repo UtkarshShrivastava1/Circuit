@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 export default function TaskUpdatePage() {
   const router = useRouter();
@@ -29,10 +29,10 @@ export default function TaskUpdatePage() {
     description: '',
     assignedTo: '',
     priority: 'medium',
-    startDate: '',
-    dueDate: '',
+    estimatedHours: 0,
     tag: 'other',
   });
+
 
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingTask, setLoadingTask] = useState(false);
@@ -41,6 +41,27 @@ export default function TaskUpdatePage() {
   const [submittingTask, setSubmittingTask] = useState(false);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [error, setError] = useState('');
+
+  // Confirmation modal state variables
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState(null);
+  const [deletingTicket, setDeletingTicket] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+ 
+   // Open confirmation modal for delete
+  function confirmDeleteTicket(ticketId) {
+    setTicketToDelete(ticketId);
+    setShowDeleteModal(true);
+  }
+
+    // Cancel the delete modal
+  // const handleDeleteCancel = () => {
+  //   setShowDeleteModal(false);
+  //   setTicketToDelete(null);
+  //   setDeleteError('');
+  // };
+
+
 
   // ✅ Fetch current user session
   useEffect(() => {
@@ -166,6 +187,7 @@ export default function TaskUpdatePage() {
         }
         const data = await res.json();
         setTickets(data);
+        // console.log("Fetched tickets:", data);
       } catch (e) {
         console.error('Error fetching tickets:', e);
       } finally {
@@ -309,11 +331,79 @@ export default function TaskUpdatePage() {
     }
   }
 
+  //Delete Ticket Handler
+  // async function deleteTicket(ticketId) {
+
+  //   if (!confirm('Are you sure you want to delete this ticket?')) return;
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     console.log("Deleting ticketId: ", ticketId);
+  //     console.log("For taskId: ", taskId);
+  //     const res = await fetch(`/api/tasks/${taskId}/tickets/${ticketId}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //       },
+    
+  //     });
+  //     if (!res.ok) throw new Error('Failed to delete ticket');
+  //     toast.success('Ticket deleted successfully.');
+  //     setTickets((prev) => prev.filter((t) => t._id !== ticketId && t.id !== ticketId));
+  //   } catch (err) {
+  //     setError(err.message);
+  //     toast.error(err.message);
+  //   }
+  // }
+
+
+// Confirm deletion handler
+  async function handleDeleteConfirm() {
+    if (!ticketToDelete) return;
+    setDeletingTicket(true);
+    setDeleteError('');
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      const res = await fetch(`/api/tasks/${taskId}/tickets/${ticketToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setDeleteError(`Failed to delete: ${data?.error || 'Unknown error'}`);
+        setDeletingTicket(false);
+        return;
+      }
+      toast.success('Ticket deleted successfully.');
+      setTickets((prev) => prev.filter((t) => t._id !== ticketToDelete && t.id !== ticketToDelete));
+      setShowDeleteModal(false);
+      setTicketToDelete(null);
+    } catch (err) {
+      setDeleteError('Network error deleting the ticket.');
+      toast.error(err.message);
+    } finally {
+      setDeletingTicket(false);
+    }
+  }
+
+function handleDeleteCancel() {
+  setShowDeleteModal(false);
+  setTicketToDelete(null);
+}
+
+
+
   const canAssignManager = currentUser?.role === 'admin';
   const canAssignMembers = ['admin', 'manager'].includes(currentUser?.role);
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md space-y-8">
+        
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-200">
         {projectName ? `Manage Task – ${projectName}` : 'Manage Task'}
       </h1>
@@ -393,6 +483,51 @@ export default function TaskUpdatePage() {
 
       {/* Tickets section */}
       <div className="mt-8">
+            {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl p-6 max-w-md w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-red-600">Delete Ticket</h3>
+                <button
+                  onClick={handleDeleteCancel}
+                  aria-label="Close"
+                  className="text-gray-100 hover:text-gray-900 p-1 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                Are you sure you want to delete this ticket? This action cannot be undone.
+              </p>
+              {deleteError && (
+                <p className="text-red-600 dark:text-red-400 mb-4">{deleteError}</p>
+              )}
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={deletingTicket}
+                  className={`px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-70 ${
+                    deletingTicket ? 'cursor-not-allowed hover:bg-red-600' : ''
+                  }`}
+                >
+                  {deletingTicket ? (
+                    <Loader2 className="animate-spin mr-2 inline" />
+                  ) : (
+                    'Confirm Delete'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200 mb-4">Tickets</h2>
         {loadingTickets && (
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg">
@@ -408,7 +543,7 @@ export default function TaskUpdatePage() {
               key={ticket._id || ticket.id}
               className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow transition"
             >
-              <div className="font-semibold text-gray-900 dark:text-gray-200">{ticket.issueTitle}</div>
+              <div className="font-semibold text-gray-900 dark:text-gray-200">Title : {ticket.issueTitle}</div>
               <p className="text-sm flex mt-1 items-center space-x-2">
                 <span className="font-medium">Status:</span>
                 <span
@@ -421,12 +556,22 @@ export default function TaskUpdatePage() {
                   {ticket.status}
                 </span>
               </p>
-              <p className="text-gray-700 dark:text-gray-300 mt-1">{ticket.description}</p>
+              <p className="text-gray-700 dark:text-gray-300 mt-1">Description : {ticket.description}</p>
+              <p className='text-gray-700  dark:text-gray-300 mt-1 '> Estimated Hours : {ticket. estimatedHours}</p>
               <p className="text-sm text-gray-700 dark:text-gray-400 mt-2">
                 Assigned to:{' '}
                 {ticket.assignedTo?.username || ticket.assignedTo?.name || ticket.assignedTo?.email || 'Unassigned'}
               </p>
+              <div className="text-sm bg-red-600 text-white dark:text-gray-300 mt-3 px-3 py-1 rounded-full inline-block ">
+               <button onClick={() => confirmDeleteTicket(ticket._id || ticket.id)}>
+                Delete Ticket
+              </button>
+
+
+                 
+                </div>
             </li>
+         
           ))}
         </ul>
 
@@ -472,7 +617,23 @@ export default function TaskUpdatePage() {
               {[...managers, ...members].map(renderParticipantOption)}
             </select>
           </div>
-          <div>
+         
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+               EstimatedHours
+              </label>
+              <input
+                type="Number"
+                min={0}
+                name="estimatedHours"
+                value={newTicket.estimatedHours}
+                onChange={handleNewTicketChange}
+                className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+             <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Priority
             </label>
@@ -481,7 +642,7 @@ export default function TaskUpdatePage() {
               value={newTicket.priority}
               onChange={handleNewTicketChange}
               required
-              className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-[100%] px-4 py-[2.5%] text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="low">Low Priority</option>
               <option value="medium">Medium Priority</option>
@@ -489,31 +650,7 @@ export default function TaskUpdatePage() {
               <option value="urgent">Urgent</option>
             </select>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Start Date
-              </label>
-              <input
-                type="date"
-                name="startDate"
-                value={newTicket.startDate}
-                onChange={handleNewTicketChange}
-                className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Due Date
-              </label>
-              <input
-                type="date"
-                name="dueDate"
-                value={newTicket.dueDate}
-                onChange={handleNewTicketChange}
-                className="w-full px-3 py-2 text-gray-900 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+           
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
