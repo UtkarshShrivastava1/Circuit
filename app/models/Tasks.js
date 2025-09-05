@@ -19,8 +19,8 @@ const ticketSchema = new mongoose.Schema({
     enum: ["open", "in-progress", "resolved"], 
     default: "open" 
   },
-  startDate: { type: Date },
-  dueDate: { type: Date },
+  estimatedHours: { type: Number, min: 0 },
+
   tag: { type: String, enum: ["bug", "development", "other"], default: "other" },
   resolution: { 
     type: String,
@@ -46,7 +46,7 @@ const taskSchema = new mongoose.Schema({
   description: { type: String, trim: true },
   status: {
     type: String,
-    enum: ["pending", "in-progress", "completed", "blocked"],
+    enum: ["pending", "in-progress", "completed", "blocked","deployment"],
     default: "pending"
   },
 
@@ -76,7 +76,7 @@ const taskSchema = new mongoose.Schema({
     max: 100,
     default: 0
   },
-  estimatedHours: { type: Number, min: 0 },
+  estimatedHours: { type: Number, default: 0 },
   actualHours: { type: Number, min: 0 },
 
   /* 🔹 Checklist */

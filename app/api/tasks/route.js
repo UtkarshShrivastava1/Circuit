@@ -56,6 +56,7 @@ export async function GET(req) {
     const tasks = await Task.find(query)
       .populate("createdBy", "name email")  // Only populate basic user fields
       .populate("assignees.user", "name email") // Populate assignee user info
+      .populate('tickets.assignedTo','name username email')
       .lean() // For better performance
       .exec();
 

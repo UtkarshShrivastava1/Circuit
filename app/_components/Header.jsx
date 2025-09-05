@@ -34,9 +34,9 @@ export default function Header() {
     <div className="p-5 flex bg-white dark:bg-slate-950 justify-between items-center border shadow-sm">
       <div className="flex flex-row items-center justify-center gap-2">
         <Image
-          src={"/Logo.jpeg"}
+          src={"/Logo.png"}
           className="rounded-full"
-          alt="logo"
+          alt="logo" 
           width={40}
           height={25}
         />

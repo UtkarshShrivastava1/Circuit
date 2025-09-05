@@ -94,7 +94,7 @@ function SideNav({ setIsMobileSidebarOpen }) {
       <div className="py-4 mb-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3 justify-center">
           <Image
-            src={"/Logo.jpeg"}
+            src={"/Logo.PNG"}
             className="rounded-full object-cover"
             alt="Circuit Logo"
             width={40}
