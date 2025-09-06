@@ -47,6 +47,7 @@ export default function TaskUpdatePage() {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [deletingTicket, setDeletingTicket] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [activeTab, setActiveTab] = useState('tasks');
  
    // Open confirmation modal for delete
   function confirmDeleteTicket(ticketId) {
@@ -331,29 +332,6 @@ export default function TaskUpdatePage() {
     }
   }
 
-  //Delete Ticket Handler
-  // async function deleteTicket(ticketId) {
-
-  //   if (!confirm('Are you sure you want to delete this ticket?')) return;
-  //   try {
-  //     const token = localStorage.getItem('token');
-  //     console.log("Deleting ticketId: ", ticketId);
-  //     console.log("For taskId: ", taskId);
-  //     const res = await fetch(`/api/tasks/${taskId}/tickets/${ticketId}`, {
-  //       method: 'DELETE',
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-    
-  //     });
-  //     if (!res.ok) throw new Error('Failed to delete ticket');
-  //     toast.success('Ticket deleted successfully.');
-  //     setTickets((prev) => prev.filter((t) => t._id !== ticketId && t.id !== ticketId));
-  //   } catch (err) {
-  //     setError(err.message);
-  //     toast.error(err.message);
-  //   }
-  // }
 
 
 // Confirm deletion handler
@@ -396,6 +374,8 @@ function handleDeleteCancel() {
   setTicketToDelete(null);
 }
 
+  const switchTab = (tab) => setActiveTab(tab);
+
 
 
   const canAssignManager = currentUser?.role === 'admin';
@@ -422,10 +402,24 @@ function handleDeleteCancel() {
         </div>
       )}
 
+        <div className="flex border-b border-gray-300 dark:border-slate-700 mb-6">
+        <button
+          className={`px-4 pb-2 font-semibold text-sm sm:text-base transition-colors ${
+            activeTab === 'tasks' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-slate-400'
+          }`} onClick={() => switchTab('tasks')}>Tasks</button>
+        <button
+          className={`px-4 pb-2 font-semibold text-sm sm:text-base transition-colors ${
+            activeTab === 'tickets' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-slate-400'
+          }`} onClick={() => switchTab('tickets')}>Tickets</button>
+      </div>
+
       {/* Error message */}
       {error && <p className="text-justify text-red-600 dark:text-red-400">{error}</p>}
 
       {/* Task form */}
+     { activeTab === 'tasks' && (
+      <>
+   
       <form onSubmit={handleTaskSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -480,9 +474,13 @@ function handleDeleteCancel() {
           )}
         </Button>
       </form>
+      </>
+      
+    
+    )}
 
       {/* Tickets section */}
-      <div className="mt-8">
+     {activeTab === 'tickets' && ( <div className="mt-8">
             {/* Delete Confirmation Modal */}
         {showDeleteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
@@ -537,43 +535,35 @@ function handleDeleteCancel() {
         {tickets.length === 0 && !loadingTickets && (
           <p className="text-center text-gray-500 dark:text-gray-400">No tickets found.</p>
         )}
-        <ul className="space-y-4">
-          {tickets.map((ticket) => (
-            <li
-              key={ticket._id || ticket.id}
-              className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow transition"
-            >
-              <div className="font-semibold text-gray-900 dark:text-gray-200">Title : {ticket.issueTitle}</div>
-              <p className="text-sm flex mt-1 items-center space-x-2">
-                <span className="font-medium">Status:</span>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    ticket.status === 'pending'
-                      ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300'
-                      : 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300'
-                  }`}
-                >
-                  {ticket.status}
-                </span>
-              </p>
-              <p className="text-gray-700 dark:text-gray-300 mt-1">Description : {ticket.description}</p>
-              <p className='text-gray-700  dark:text-gray-300 mt-1 '> Estimated Hours : {ticket. estimatedHours}</p>
-              <p className="text-sm text-gray-700 dark:text-gray-400 mt-2">
-                Assigned to:{' '}
-                {ticket.assignedTo?.username || ticket.assignedTo?.name || ticket.assignedTo?.email || 'Unassigned'}
-              </p>
-              <div className="text-sm bg-red-600 text-white dark:text-gray-300 mt-3 px-3 py-1 rounded-full inline-block ">
-               <button onClick={() => confirmDeleteTicket(ticket._id || ticket.id)}>
-                Delete Ticket
-              </button>
+    { tickets.length != 0 && !loadingTickets && (<table className="min-w-full border border-gray-300 dark:border-gray-700 rounded-lg shadow-md overflow-hidden">
+  <thead className="bg-gray-100 dark:bg-gray-800">
+    <tr>
+      <th className="px-6 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Title</th>
+      <th className="px-6 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Assigned To</th>
+      <th className="px-6 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Action</th>
+    </tr>
+  </thead>
+  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+    {tickets.map((ticket) => (
+      <tr key={ticket._id || ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200">
+        <td className="px-6 py-4 whitespace-normal text-gray-900 dark:text-gray-100 font-semibold">{ticket.issueTitle}</td>
+        <td className="px-6 py-4 whitespace-normal text-gray-700 dark:text-gray-300">
+          {ticket.assignedTo?.username || ticket.assignedTo?.name || ticket.assignedTo?.email || 'Unassigned'}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <button
+            onClick={() => confirmDeleteTicket(ticket._id || ticket.id)}
+            className="inline-block px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 transition"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+      </table>)}
 
 
-                 
-                </div>
-            </li>
-         
-          ))}
-        </ul>
 
         {/* New ticket form */}
         <form onSubmit={createTicket} className="mt-6 border-t pt-6 space-y-4">
@@ -682,7 +672,7 @@ function handleDeleteCancel() {
             )}
           </Button>
         </form>
-      </div>
+      </div>)}
 
       <ToastContainer />
     </div>
