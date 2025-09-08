@@ -141,7 +141,7 @@ export async function GET(req) {
   try {
     // Extract token from Authorization header
     const authHeader = req.headers.get("authorization");
-    console.log("Auth Header received:", authHeader);
+    // console.log("Auth Header received:", authHeader);
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(

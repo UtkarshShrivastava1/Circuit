@@ -21,7 +21,6 @@ export async function POST(req) {
 
     // ✅ Extract body
     const body = await req.json();
-    console.log("From createNotification : ",body)
     const { msgcontent, source, dataTo, toEmail, date } = body;
 
     // ✅ Build Notification object matching schema

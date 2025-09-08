@@ -149,36 +149,30 @@ export async function PUT(req, { params }) {
 }
 
 // Delete a ticket (admin only)
+
+
 export async function DELETE(req, { params }) {
-  await dbConnect();
-  const { taskId } = params;
   const { ticketId } = params;
-  
-console.log("Deleting ticket:", ticketId, "from task:", taskId);
+  await dbConnect();
+
   try {
     const user = await authenticate(req);
-    console.log("Authenticated user:", user);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const roleCheck = checkRole(user, "admin");
-     console.log("Role check:", roleCheck);
-    if (!roleCheck.ok) {
-      return NextResponse.json({ error: roleCheck.message }, { status: roleCheck.status });
-    }
+    if (!roleCheck.ok) return NextResponse.json({ error: roleCheck.message }, { status: roleCheck.status });
 
-    const task = await Task.findById(taskId);
-     console.log("Fetched task:", task);
-    if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    // Find task containing the ticket
+    const task = await Task.findOne({ "tickets._id": ticketId });
+    if (!task) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
 
-    const ticket = task.tickets.id(ticketId);
-    if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
-
-    ticket.remove();
+    // Remove the ticket subdocument by id
+    task.tickets = task.tickets.filter(t => t._id.toString() !== ticketId);
     await task.save();
 
     return NextResponse.json({ message: "Ticket deleted successfully" }, { status: 200 });
-  } catch (err) {
-    console.error("DELETE /tasks/[taskId]/tickets error:", err);
+  } catch (error) {
+    console.error("Error deleting ticket:", error);
     return NextResponse.json({ error: "Failed to delete ticket" }, { status: 500 });
   }
 }
