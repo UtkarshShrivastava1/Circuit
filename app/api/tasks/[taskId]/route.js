@@ -19,7 +19,9 @@ export async function GET(req, { params }) {
 
     const task = await Task.findById(taskId)
       .populate('assignees.user', 'name email')
+      .populate('projectId', 'projectNamename') 
       .populate('createdBy', 'name email')
+      .populate('subtasks')
       .lean();
 
     if (!task) {

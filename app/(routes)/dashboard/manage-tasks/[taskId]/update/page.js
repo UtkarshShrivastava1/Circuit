@@ -10,7 +10,8 @@ export default function TaskUpdatePage() {
   const router = useRouter();
   const params = useParams();
   const taskId = params.taskId;
-  const projectName = params.projectId || params.project;
+  const projectName = params.projectId || params.projectName;
+  
 
   const [currentUser, setCurrentUser] = useState(null);
   const [task, setTask] = useState(null);

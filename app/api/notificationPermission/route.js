@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      console.log("Request body:", req.body);
+
       const { email, notificationPermission, time } = req.body;
 
       if (!email || typeof email !== "string") {

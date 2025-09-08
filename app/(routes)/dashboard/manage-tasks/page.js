@@ -10,10 +10,10 @@ function ManageAllTasks() {
   const router = useRouter();
   const params = useParams();
   const {taskId} = params; // Ensure this exists
-  console.log('Task ID from params:', taskId);
+  // console.log('Task ID from params:', taskId);
   const searchParams = useSearchParams();
   const taskIdfromserchaParam = searchParams.get('taskId');
- console.log('Task ID from search params:', taskIdfromserchaParam);
+//  console.log('Task ID from search params:', taskIdfromserchaParam);
   const projectName = searchParams.get('projectName') || '';
 
   const [activeTab, setActiveTab] = useState('tasks');
@@ -29,7 +29,7 @@ function ManageAllTasks() {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [deletingTicket, setDeletingTicket] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-
+//user checking
   useEffect(() => {
     async function fetchUserRole() {
       const token = localStorage.getItem('token');
@@ -48,6 +48,7 @@ function ManageAllTasks() {
     fetchUserRole();
   }, [router]);
 
+  //task data fetchnig
   useEffect(() => {
     async function fetchData() {
       const token = localStorage.getItem('token');
@@ -74,6 +75,7 @@ function ManageAllTasks() {
 
         const tasksData = await resTasks.json();
         setTasks(tasksData);
+        console.log('task data : ',tasksData)
         setError('');
 
         // Extract tickets from all tasks

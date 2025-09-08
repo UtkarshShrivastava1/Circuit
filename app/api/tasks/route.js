@@ -57,6 +57,7 @@ export async function GET(req) {
       .populate("createdBy", "name email")  // Only populate basic user fields
       .populate("assignees.user", "name email") // Populate assignee user info
       .populate('tickets.assignedTo','name username email')
+      .populate('subtasks')
       .lean() // For better performance
       .exec();
 
@@ -73,60 +74,62 @@ export async function GET(req) {
   }
 }
 
-// 🔹 POST → create new task (Admin + Manager only)
 export async function POST(req) {
   try {
-    // Verify authentication
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.split(' ')[1];
     const user = await verifyAuth(token);
-
     if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     await dbConnect();
 
-    // Parse body
     const body = await req.json();
 
-    // Validate required fields
-    const requiredFields = ["title", "description", "projectId", "assignees"];
+    const requiredFields = ['title', 'description', 'projectId', 'assignees'];
     for (const field of requiredFields) {
-      if (!body[field] || (field === "assignees" && body.assignees.length === 0)) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}` },
-          { status: 400 }
-        );
+      if (!body[field] || (field === 'assignees' && (!Array.isArray(body.assignees) || body.assignees.length === 0))) {
+        return NextResponse.json({ error: `Missing or invalid field: ${field}` }, { status: 400 });
       }
     }
 
-    // ✅ Now mongoose.Types.ObjectId will work
+    const checklist = Array.isArray(body.checklist)
+      ? body.checklist.map(item => ({
+          item: item.item || '',
+          isCompleted: !!item.isCompleted,
+        }))
+      : [];
+
     const task = await Task.create({
       title: body.title,
       description: body.description,
       projectId: new mongoose.Types.ObjectId(body.projectId),
       createdBy: new mongoose.Types.ObjectId(user._id),
-      assignedBy: new mongoose.Types.ObjectId(user._id),
-      assignees: body.assignees.map(assignee => ({
-        user: new mongoose.Types.ObjectId(assignee.user),
-        state: assignee.state || "assigned"
+      assignedBy:new  mongoose.Types.ObjectId(user._id),
+      assignees: body.assignees.map(a => ({
+        user: new mongoose.Types.ObjectId(a.user),
+        state: a.state || 'assigned',
       })),
-      status: "pending",
+      estimatedHours: body.estimatedHours ? Number(body.estimatedHours) : 0,
+      dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+      priority: body.priority || 'medium',
+      checklist,
+      // subtasks excluded as per your schema (it's array of ObjectId, separate tasks)
+      status: 'pending',
+      progress: 0, // pre-save middleware sets this
     });
 
     return NextResponse.json(task, { status: 201 });
+
   } catch (error) {
-    console.error("Task creation error:", error);
+    console.error('Task creation error:', error);
     return NextResponse.json(
-      {
-        error: "Failed to create task",
-        details: process.env.NODE_ENV === "development" ? error.message : undefined,
-      },
+      { error: 'Failed to create task', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
       { status: 500 }
     );
   }
