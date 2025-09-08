@@ -74,6 +74,16 @@ const userSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Task',
     },],
+    
+  leaveHistory: [{
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Leave'
+    }],
+  leaveBalances: {
+  paid: { type: Number, default: 0 },
+  // Add more types if needed
+  },
+
   veriyToken: {
     type: String,
     default: '',
