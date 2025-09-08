@@ -235,7 +235,7 @@ export default function AttendancePage() {
 
       {/* Mark Attendance Tab (Member/Manager) */}
       {(activeTab === 'mark' && (userRole === 'member' || userRole === 'manager')) && (
-        <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+        <div className=" flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-bold mb-4 text-center text-gray-900 dark:text-gray-200">
             📌 Mark Attendance
           </h2>
@@ -266,7 +266,7 @@ export default function AttendancePage() {
           <button
             onClick={handleMarkAttendance}
             disabled={isMarking}
-            className={`w-full py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
+            className={`w-[500px] py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
               isMarking
                 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'

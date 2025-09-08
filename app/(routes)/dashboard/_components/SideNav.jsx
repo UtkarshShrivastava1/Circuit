@@ -40,14 +40,13 @@ function SideNav({ setIsMobileSidebarOpen }) {
 
   // Menu entries for all roles
   const baseMenu = [
-     { id: 1, name: "My Projects", path: "/dashboard", icon: <FaCopy className="text-xl" /> },
+    { id: 1, name: "My Projects", path: "/dashboard", icon: <FaCopy className="text-xl" /> },
     { id: 2, name: "All Projects", path: "/dashboard/projects", icon: <RiFolderChartFill className="text-xl" /> },
     { id: 3, name: "Notifications", path: "/dashboard/notifications", icon: <MdNotifications className="text-xl" /> },
-        { id: 5, name: "Attendance", path: "/dashboard/attendance-management", icon: <BsClipboardCheck className="text-xl" /> },
+    { id: 5, name: "Attendance", path: "/dashboard/attendance-management", icon: <BsClipboardCheck className="text-xl" /> },
     { id: 4, name: "Members", path: "/dashboard/profiles", icon: <HiMiniUserGroup className="text-xl" /> },
     { id: 7, name: "Manage Tasks", path: "/dashboard/manage-tasks", icon: <RiFolderChartFill className="text-xl" /> },
-    
-    
+    { id: 10, name: "Leave Management", path: "/dashboard/leave", icon: <BsCalendarCheck className="text-xl" /> },
   ];
 
 

@@ -40,7 +40,8 @@ export default function Header() {
           width={40}
           height={25}
         />
-        <span className="text-blue-800 font-bold dark:text-white text-3xl">
+        <span style={{ fontFamily: 'Big Shoulders Stencil, cursive' }}
+        className="text-blue-800 font-bold dark:text-white text-3xl">
           Circuit
         </span>
       </div>
