@@ -99,7 +99,7 @@ export default function AllProfiles() {
         return;
       }
 
-      const res = await fetch(`/api/user/${encodeURIComponent(selectedUser)}`, {
+      const res = await fetch(`/api/user?email=${encodeURIComponent(selectedUser)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -152,7 +152,7 @@ export default function AllProfiles() {
     );
 
   return (
-    <div className="p-3 sm:p-4">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8">
       <ToastContainer />
       <div className="mb-6 relative">
         <Input
@@ -164,45 +164,71 @@ export default function AllProfiles() {
         />
         <IoMdSearch className="absolute text-lg left-3 top-1/2 -translate-y-1/2 text-gray-500" />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+      
+      {/* Responsive grid with auto-fit */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4 md:gap-6">
         {filteredUsers.map((user) => (
-          <Card key={user.email} className="w-full">
-            <CardContent className="flex gap-4 p-3 sm:p-4">
-              <div className="flex gap-3 w-full items-start">
-                <Avatar className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
-                  <AvatarImage src={user.profileImgUrl || '/user.png'} />
-                  <AvatarFallback>
-                    {user.name?.[0] || user.email?.[0] || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-1">
-                  <h4 className="text-sm font-semibold truncate">
-                    {user.name || 'Unnamed User'}
-                  </h4>
-                  <div className="text-xs sm:text-sm truncate">
-                    {user.email}
+          <Card key={user.email} className="w-full min-w-0">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-4">
+                {/* Top section: Avatar, Name, Email with Status Badge */}
+                <div className="flex items-start gap-3">
+                  <Avatar className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
+                    <AvatarImage src={user.profileImgUrl || '/user.png'} />
+                    <AvatarFallback>
+                      {user.name?.[0] || user.email?.[0] || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  {/* Name and Email section */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h4 className="text-sm font-semibold truncate">
+                      {user.name || 'Unnamed User'}
+                    </h4>
+                    <div className="text-xs sm:text-sm truncate text-gray-600 dark:text-gray-400">
+                      {user.email}
+                    </div>
                   </div>
-                  <p className="text-xs sm:text-sm">{user.role}</p>
-                  <div className="flex items-center gap-2 sm:gap-4 mt-2">
-                    <button
-                      onClick={() => router.push(`/dashboard/profiles/${encodeURIComponent(user.email)}`)}
-                      aria-label="View profile"
-                      className="flex items-center text-muted-foreground text-xs sm:text-sm cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 focus:outline-none min-h-[44px]"
+                  
+                  {/* Status Badge - positioned on the right side */}
+                  <div className="flex-shrink-0">
+                    <span
+                      className={`inline-block px-2 py-1 rounded text-white text-xs font-medium ${
+                        user.profileState === 'active' ? 'bg-green-500' : 'bg-red-500'
+                      }`}
                     >
-                      <RiUserSettingsFill className="mr-1 sm:mr-2 h-4 w-4 opacity-70" />
-                      <span>View Profile</span>
-                    </button>
-                    {(currentUserRole === 'admin' || currentUserRole === 'manager') && (
-                      <button
-                        onClick={() => showDeleteConfirmation(user.email)}
-                        aria-label="Delete user"
-                        className="flex items-center text-xs sm:text-sm text-red-500 cursor-pointer hover:text-red-700 dark:hover:text-red-600 focus:outline-none min-h-[44px]"
-                      >
-                        <MdDelete className="mr-1 sm:mr-2 h-4 w-4" />
-                        <span>Delete</span>
-                      </button>
-                    )}
+                      {user.profileState || 'Unknown'}
+                    </span>
                   </div>
+                </div>
+                
+                {/* Role and Inactive Date */}
+                <div className="space-y-1">
+                  <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 capitalize">
+                    Role: {user.role}
+                  </p>
+                </div>
+                
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                  <button
+                    onClick={() => router.push(`/dashboard/profiles/${encodeURIComponent(user.email)}`)}
+                    aria-label="View profile"
+                    className="flex items-center justify-center text-muted-foreground text-xs sm:text-sm cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 focus:outline-none h-9 px-3 border rounded border-gray-300 hover:border-blue-400 transition-colors flex-1"
+                  >
+                    <RiUserSettingsFill className="mr-1 sm:mr-2 h-4 w-4 opacity-70" />
+                    <span>View Profile</span>
+                  </button>
+                  {(currentUserRole === 'admin' || currentUserRole === 'manager') && (
+                    <button
+                      onClick={() => showDeleteConfirmation(user.email)}
+                      aria-label="Delete user"
+                      className="flex items-center justify-center text-xs sm:text-sm text-red-500 cursor-pointer hover:text-red-700 dark:hover:text-red-600 focus:outline-none h-9 px-3 border rounded border-red-300 hover:border-red-500 transition-colors flex-1"
+                    >
+                      <MdDelete className="mr-1 sm:mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </CardContent>

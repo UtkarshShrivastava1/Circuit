@@ -55,7 +55,7 @@ export default function UserProfile() {
 
       try {
         // 1. Fetch the user being viewed
-        const userRes = await fetch(`/api/user/${encodeURIComponent(decodedEmail)}`, {
+        const userRes = await fetch(`/api/user?email=${encodeURIComponent(decodedEmail)}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-cache',
         });
@@ -200,7 +200,7 @@ export default function UserProfile() {
       );
 
       // PATCH to backend
-      const res = await fetch(`/api/user/${encodeURIComponent(decodedEmail)}`, {
+      const res = await fetch(`/api/user?email=${encodeURIComponent(decodedEmail)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -414,7 +414,6 @@ export default function UserProfile() {
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
-                      <option value="banned">Banned</option>
                     </select>
                   </div>
                 )}
@@ -454,6 +453,22 @@ export default function UserProfile() {
                   }
                 />
                 <Info label="Profile Status" value={user.profileState} />
+                
+                {/* Show status change date only when user is inactive */}
+                {user.profileState === 'inactive' && user.stateChangedAt && (
+                  <Info 
+                    label="Set Inactive On" 
+                    value={new Date(user.stateChangedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  />
+                )}
+                
                 <Info label="Role" value={user.role} />
                 <Info
                   label="Member Since"

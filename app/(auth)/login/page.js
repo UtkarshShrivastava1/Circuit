@@ -45,7 +45,7 @@ export default function LoginForm() {
 
       // Show toast with actionable message
       if (err.response?.status === 403) {
-        toast.error(err.response.data.error || 'Your account is inactive or banned. Contact support.');
+        toast.error(err.response.data.error || 'Your account is in inactive state,Contact support.');
       } else if (err.response?.status === 401) {
         toast.error('Invalid email or password. Please try again.');
       } else {

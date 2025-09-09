@@ -1,5 +1,104 @@
-// /models/User.js
+// // /models/User.js
 
+// import mongoose from 'mongoose';
+
+// const userSchema = new mongoose.Schema({
+//   email: {
+//     type: String,
+//     required: true,
+//     unique: true,
+//     lowercase: true,
+//     trim: true,
+//   },
+//   password: {
+//     type: String,
+//     required: true,
+//   },
+//   // confirmPassword: {
+//   //   type: String,
+//   //   required: true,
+//   // },
+//   profileImg: {
+//     type: Buffer, // storing image as binary, can also store URL only if preferred
+//     default: null,
+//   },
+//   profileImgUrl: {
+//     type: String,
+//     default: '',
+//   },
+//   name: {
+//     type: String,
+//     required: true,
+//     trim: true,
+//   },
+//   gender: {
+//     type: String,
+//     enum: ['male', 'female', 'other', 'prefer not to say'],
+//     default: 'male',
+//   },
+//   role: {
+//     type: String,
+//     enum: ['member', 'admin', 'manager'],
+//     default: 'member',
+//   },
+//   phoneNumber: {
+//     type: String,
+//     default: '',
+//   },
+//   dateOfBirth: {
+//     type: Date,
+//   },
+//   profileState: {
+//     type: String,
+//     enum: ['active', 'inactive'],
+//     default: 'active',
+//   },
+//   forgotpasswordToken: {
+//     type: String,
+//     },
+//     verified: {
+//     type: Boolean,
+//     default: false,
+//   },
+//   forgotPasswordExpires: {
+//     type: Date,
+//     default: Date.now,
+//   },
+//   notifications: [
+//     {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: 'Notification',
+//     },
+//   ],
+//   tasks:[{
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: 'Task',
+//     },],
+    
+//   leaveHistory: [{
+//   type: mongoose.Schema.Types.ObjectId,
+//   ref: 'Leave'
+//     }],
+//   leaveBalances: {
+//   paid: { type: Number, default: 0 },
+//   // Add more types if needed
+//   },
+
+//   veriyToken: {
+//     type: String,
+//     default: '',
+//   },
+//   veriyTokenExpires: {
+//     type: Date,
+//     default: Date.now,
+//   },
+// }, { timestamps: true });
+
+
+// const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+// export default User;
+// /models/User.js
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
@@ -14,12 +113,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  // confirmPassword: {
-  //   type: String,
-  //   required: true,
-  // },
   profileImg: {
-    type: Buffer, // storing image as binary, can also store URL only if preferred
+    type: Buffer,
     default: null,
   },
   profileImgUrl: {
@@ -50,13 +145,17 @@ const userSchema = new mongoose.Schema({
   },
   profileState: {
     type: String,
-    enum: ['active', 'inactive', 'banned'],
+    enum: ['active', 'inactive'],
     default: 'active',
+  },
+  stateChangedAt: {
+    type: Date,
+    default: null,
   },
   forgotpasswordToken: {
     type: String,
-    },
-    verified: {
+  },
+  verified: {
     type: Boolean,
     default: false,
   },
@@ -70,20 +169,17 @@ const userSchema = new mongoose.Schema({
       ref: 'Notification',
     },
   ],
-  tasks:[{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Task',
-    },],
-    
+  tasks: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task',
+  }],
   leaveHistory: [{
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'Leave'
-    }],
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Leave'
+  }],
   leaveBalances: {
-  paid: { type: Number, default: 0 },
-  // Add more types if needed
+    paid: { type: Number, default: 0 },
   },
-
   veriyToken: {
     type: String,
     default: '',
@@ -92,8 +188,18 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  strict: false // Allow additional fields to be saved
+});
 
+// Commented out pre-save hook to avoid conflicts with manual updates
+// userSchema.pre('save', function(next) {
+//   if (this.isModified('profileState')) {
+//     this.stateChangedAt = new Date();
+//   }
+//   next();
+// });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
