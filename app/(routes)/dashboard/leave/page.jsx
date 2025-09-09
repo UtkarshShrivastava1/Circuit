@@ -962,7 +962,7 @@ async function handlePolicySave() {
               <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">Policy Impact</h4>
               <p className="text-sm text-blue-800 dark:text-blue-300">
                 This policy will apply to all employees immediately after saving. 
-                Current month's leave calculations will be updated automatically.
+                Current month&apos;s leave calculations will be updated automatically.
               </p>
             </div>
           </div>
