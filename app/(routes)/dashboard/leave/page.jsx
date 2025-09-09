@@ -377,49 +377,52 @@ export default function LeaveManagementPage() {
     }
   }
 
-  async function handlePolicySave() {
-    const token = getToken();
-    if (!token) {
-      setMsg('Unauthorized.');
+async function handlePolicySave() {
+  const token = getToken();
+  if (!token) {
+    setMsg('Unauthorized.');
+    return;
+  }
+
+  try {
+    console.log('Sending POST with _method=PUT to /api/leave-rule with:', policyForm);
+    
+    const res = await fetch('/api/leave-rule', {
+      method: 'POST', // Changed from PUT to POST
+      headers: { 
+        'Content-Type': 'application/json', 
+        Authorization: `Bearer ${token}` 
+      },
+      body: JSON.stringify({
+        ...policyForm,
+        _method: 'PUT' // Add action indicator
+      }),
+    });
+    
+    console.log('Response status:', res.status);
+    console.log('Response headers:', [...res.headers.entries()]);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.log('Error response:', errorText);
+      setMsg(`Failed to update policy: ${res.status} ${res.statusText}`);
       return;
     }
-
-    try {
-      console.log('Sending PUT to /api/leave-rule with:', policyForm);
-      
-      const res = await fetch('/api/leave-rule', {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json', 
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify(policyForm),
-      });
-      
-      console.log('Response status:', res.status);
-      console.log('Response headers:', [...res.headers.entries()]);
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.log('Error response:', errorText);
-        setMsg(`Failed to update policy: ${res.status} ${res.statusText}`);
-        return;
-      }
-      
-      const data = await res.json();
-      if (data?.maxPaidLeavesPerMonth != null) {
-        setPolicy(data);
-        setShowPolicyAlert(true);
-        setTimeout(() => setShowPolicyAlert(false), 4000);
-        await fetchMyLeaves();
-      } else {
-        setMsg(data?.error || 'Failed to update policy.');
-      }
-    } catch (error) {
-      console.error('Policy save error:', error);
-      setMsg(`Failed to update policy: ${error.message}`);
+    
+    const data = await res.json();
+    if (data?.maxPaidLeavesPerMonth != null) {
+      setPolicy(data);
+      setShowPolicyAlert(true);
+      setTimeout(() => setShowPolicyAlert(false), 4000);
+      await fetchMyLeaves();
+    } else {
+      setMsg(data?.error || 'Failed to update policy.');
     }
+  } catch (error) {
+    console.error('Policy save error:', error);
+    setMsg(`Failed to update policy: ${error.message}`);
   }
+}
 
   function exportToExcel() {
     const worksheetData = (reportLeaves || []).map(l => {
