@@ -16,19 +16,27 @@ export async function PUT(req) {
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const token = authHeader.split(' ')[1];
-  const user = verifyToken(token);
-  if (!user || user.role !== 'admin')
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  
+  try {
+    // Make sure verifyToken is awaited if it's async
+    const user = await verifyToken(token);
+    if (!user || user.role !== 'admin')
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const data = await req.json();
-  let rule = await LeaveRule.getRule();
+    const data = await req.json();
+    let rule = await LeaveRule.getRule();
 
-  rule.maxPaidLeavesPerMonth = data.maxPaidLeavesPerMonth ?? rule.maxPaidLeavesPerMonth;
-  rule.notes = data.notes ?? rule.notes;
-  rule.updatedBy = user.id;
-  rule.updatedAt = new Date();
+    rule.maxPaidLeavesPerMonth = data.maxPaidLeavesPerMonth ?? rule.maxPaidLeavesPerMonth;
+    rule.notes = data.notes ?? rule.notes;
+    rule.updatedBy = user.id;
+    rule.updatedAt = new Date();
 
-  await rule.save();
+    await rule.save();
 
-  return NextResponse.json(rule);
+    return NextResponse.json(rule);
+  } catch (error) {
+    console.error('PUT /api/leave-rule error:', error);
+    return NextResponse.json({ error: 'Unauthorized or server error' }, { status: 401 });
+  }
 }
+
