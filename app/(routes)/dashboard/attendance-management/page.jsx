@@ -143,7 +143,7 @@ export default function AttendancePage() {
     const worksheet = XLSX.utils.json_to_sheet(
       report.map((r) => ({
         User: r.userId?.name || '',
-        Date: format(new Date(r.date), 'yyyy-MM-dd'),
+        Date: format(new Date(r.date), 'dd-MM-yyyy'),
         'Work Mode': r.workMode || '-',
         'Check In': r.checkIn || '-',
         'Check Out': r.checkOut || '-',
@@ -291,11 +291,19 @@ export default function AttendancePage() {
             <div className="mt-4 text-center space-y-2">
               <p className="text-sm text-gray-600 dark:text-gray-400">Latest Attendance Status</p>
               {attendanceStatus && <StatusBadge status={attendanceStatus} />}
-              {lastDate && (
+              {/* {lastDate && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Marked at: <span className="text-gray-900 dark:text-gray-300">{new Date(lastDate).toLocaleString()}</span>
                 </p>
-              )}
+              )} */}
+              {lastDate && (
+  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+    Marked at: <span className="text-gray-900 dark:text-gray-300">
+      {format(new Date(lastDate), 'dd/MM/yyyy HH:mm:ss')}
+    </span>
+  </p>
+)}
+
               {workMode && (
                 <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mt-1">
                   Mode: <span className="font-normal">{workMode === 'wfh' ? '🏠 Work From Home' : '🏢 Office'}</span>
@@ -457,7 +465,7 @@ export default function AttendancePage() {
                     <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">{att.userId?.name || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">
-                        {format(new Date(att.date), 'yyyy-MM-dd')}
+                        {format(new Date(att.date), 'dd-MM-yyyy')}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 capitalize">
                         {att.workMode || '-'}

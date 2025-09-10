@@ -9,7 +9,7 @@ const attendanceSchema = new mongoose.Schema(
     },
     date: {
       type: Date,
-      default: () => new Date().setHours(0, 0, 0, 0), // midnight, unique per day
+      // default: () => new Date().setHours(0, 0, 0, 0), // midnight, unique per day
       required: true,
     },
     status: {

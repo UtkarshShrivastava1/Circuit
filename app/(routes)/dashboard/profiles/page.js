@@ -165,77 +165,135 @@ export default function AllProfiles() {
         <IoMdSearch className="absolute text-lg left-3 top-1/2 -translate-y-1/2 text-gray-500" />
       </div>
       
-      {/* Responsive grid with auto-fit */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4 md:gap-6">
-        {filteredUsers.map((user) => (
-          <Card key={user.email} className="w-full min-w-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex flex-col gap-4">
-                {/* Top section: Avatar, Name, Email with Status Badge */}
-                <div className="flex items-start gap-3">
-                  <Avatar className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
-                    <AvatarImage src={user.profileImgUrl || '/user.png'} />
-                    <AvatarFallback>
-                      {user.name?.[0] || user.email?.[0] || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  {/* Name and Email section */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <h4 className="text-sm font-semibold truncate">
-                      {user.name || 'Unnamed User'}
-                    </h4>
-                    <div className="text-xs sm:text-sm truncate text-gray-600 dark:text-gray-400">
-                      {user.email}
-                    </div>
-                  </div>
-                  
-                  {/* Status Badge - positioned on the right side */}
-                  <div className="flex-shrink-0">
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-white text-xs font-medium ${
-                        user.profileState === 'active' ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    >
-                      {user.profileState || 'Unknown'}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Role and Inactive Date */}
-                <div className="space-y-1">
-                  <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 capitalize">
-                    Role: {user.role}
-                  </p>
-                </div>
-                
-                {/* Action buttons */}
-                <div className="flex flex-col sm:flex-row gap-2 w-full">
-                  <button
-                    onClick={() => router.push(`/dashboard/profiles/${encodeURIComponent(user.email)}`)}
-                    aria-label="View profile"
-                    className="flex items-center justify-center text-muted-foreground text-xs sm:text-sm cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 focus:outline-none h-9 px-3 border rounded border-gray-300 hover:border-blue-400 transition-colors flex-1"
-                  >
-                    <RiUserSettingsFill className="mr-1 sm:mr-2 h-4 w-4 opacity-70" />
-                    <span>View Profile</span>
-                  </button>
-                  {(currentUserRole === 'admin' || currentUserRole === 'manager') && (
-                    <button
-                      onClick={() => showDeleteConfirmation(user.email)}
-                      aria-label="Delete user"
-                      className="flex items-center justify-center text-xs sm:text-sm text-red-500 cursor-pointer hover:text-red-700 dark:hover:text-red-600 focus:outline-none h-9 px-3 border rounded border-red-300 hover:border-red-500 transition-colors flex-1"
-                    >
-                      <MdDelete className="mr-1 sm:mr-2 h-4 w-4" />
-                      <span>Delete</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+{/* Responsive grid with auto-fit */}
+<div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4 md:gap-6">
+  {filteredUsers.map((user) => (
+    <Card 
+      key={user.email} 
+      className="w-full min-w-0 hover:shadow-lg transition-shadow duration-300 border-2 hover:border-blue-200 dark:hover:border-blue-800"
+    >
+      <CardContent className="p-0">
+{/* Profile Section - Accessible and Touch-Friendly */}
+<div
+  onClick={() => {
+    if (currentUserRole === 'admin' || currentUserRole === 'manager') {
+      router.push(`/dashboard/profiles/${encodeURIComponent(user.email)}`);
+    }
+  }}
+  onKeyDown={(e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && (currentUserRole === 'admin' || currentUserRole === 'manager')) {
+      e.preventDefault();
+      router.push(`/dashboard/profiles/${encodeURIComponent(user.email)}`);
+    }
+  }}
+  role={currentUserRole === 'admin' || currentUserRole === 'manager' ? 'button' : undefined}
+  tabIndex={currentUserRole === 'admin' || currentUserRole === 'manager' ? 0 : undefined}
+  aria-label={currentUserRole === 'admin' || currentUserRole === 'manager' ? `View profile for ${user.name}` : undefined}
+  className={`p-4 transition-all duration-300 rounded-t-lg select-none ${
+    (currentUserRole === 'admin' || currentUserRole === 'manager')
+      ? 'cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 active:bg-blue-100 dark:active:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50'
+      : 'cursor-default'
+  }`}
+>
+  {/* Header with Avatar and Status */}
+  <div className="flex items-start gap-4 mb-3">
+    <div className="relative">
+      <Avatar className="w-16 h-16 ring-2 ring-blue-100 dark:ring-blue-800">
+        <AvatarImage src={user.profileImgUrl || '/user.png'} />
+        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
+          {user.name?.[0] || user.email?.[0] || '?'}
+        </AvatarFallback>
+      </Avatar>
+      {/* Status Indicator */}
+      <div className="absolute -top-1 -right-1">
+        <div
+          className={`w-5 h-5 rounded-full border-2 border-white dark:border-gray-800 ${
+            user.profileState === 'active' ? 'bg-green-500' : 'bg-red-500'
+          }`}
+        />
       </div>
+    </div>
 
+    {/* User Info */}
+    <div className="flex-1 min-w-0">
+      <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate mb-1">
+        {user.name || 'Unnamed User'}
+      </h4>
+      <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2">
+        {user.email}
+      </p>
+      
+      {/* Role Badge */}
+      <div className="inline-flex items-center">
+        <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+          user.role === 'admin' 
+            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+            : user.role === 'manager'
+            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+        }`}>
+          {user.role}
+        </span>
+      </div>
+    </div>
+
+    {/* Status Badge */}
+    <div className="flex-shrink-0">
+      <span
+        className={`inline-block px-2 py-1 rounded-full text-white text-xs font-medium ${
+          user.profileState === 'active' ? 'bg-green-500' : 'bg-red-500'
+        }`}
+      >
+        {user.profileState || 'Unknown'}
+      </span>
+    </div>
+  </div>
+
+  {/* Click to View Hint - Only for Admin/Manager */}
+  {(currentUserRole === 'admin' || currentUserRole === 'manager') && (
+    <div className="flex items-center justify-center py-2 border-t border-gray-100 dark:border-gray-700 mt-3">
+      <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+        👁️ Tap to view profile
+      </span>
+    </div>
+  )}
+</div>
+
+{/* Action Buttons Section - Enhanced for Mobile */}
+{(currentUserRole === 'admin' || currentUserRole === 'manager') && (
+  <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
+    <div className="flex gap-2 pt-3">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          router.push(`/dashboard/profiles/${encodeURIComponent(user.email)}`);
+        }}
+        className="flex-1 flex items-center justify-center gap-2 px-3 py-3 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 dark:active:bg-blue-900/70 rounded-lg transition-colors min-h-[44px] touch-manipulation"
+        aria-label={`View profile for ${user.name}`}
+      >
+        <RiUserSettingsFill className="w-4 h-4" />
+        <span>Manage Profile</span>
+      </button>
+      
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          showDeleteConfirmation(user.email);
+        }}
+        className="flex-1 flex items-center justify-center gap-2 px-3 py-3 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 dark:active:bg-red-900/70 rounded-lg transition-colors min-h-[44px] touch-manipulation"
+        aria-label={`Delete user ${user.name}`}
+      >
+        <MdDelete className="w-4 h-4" />
+        <span>Delete</span>
+      </button>
+    </div>
+  </div>
+)}
+
+      </CardContent>
+    </Card>
+  ))}
+</div>
       {/* Creative Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

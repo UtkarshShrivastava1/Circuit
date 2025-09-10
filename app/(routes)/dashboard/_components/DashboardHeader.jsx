@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { HiMenuAlt3 } from "react-icons/hi";
 import axios from "axios";
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 function DashboardHeader() {
   const [userData, setUserData] = useState(null);
@@ -19,12 +20,14 @@ function DashboardHeader() {
     async function fetchSession() {
       try {
         const res = await axios.get("/api/auth/session");
+        // console.log("Full Session response:", JSON.stringify(res.data, null, 2));
         if (res.status !== 200) {
           setUserData(null);
           return;
         }
         setUserData(res.data);
       } catch (error) {
+        console.log("Session error:", error); // Add this debug line
         setUserData(null);
       }
     }
@@ -45,22 +48,22 @@ function DashboardHeader() {
   return (
     <div className="p-3 bg-white dark:bg-slate-950 shadow-sm border-b flex justify-between items-center">
       <div className="flex items-center gap-2">
-        {userData?.profileImgUrl ? (
-          <div className="relative w-14 h-14">
-            <UserHoverCard email={userData.email} />
-          </div>
-        ) : (
-          <Image
-            src="/user.png"
-            className="rounded-full border-2 border-slate-300"
-            alt="Default Profile"
-            width={56}
-            height={56}
-          />
-        )}
+        <div onClick={() => {
+      if (userData?.email) {
+        router.push(`/dashboard/profiles/${encodeURIComponent(userData.email)}`);
+      }
+    }}
+    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -m-2 transition-colors">
+  <Avatar className="w-14 h-14 flex-shrink-0">
+    <AvatarImage src={userData?.profileImgUrl || '/user.png'} />
+    <AvatarFallback>
+      {userData?.name?.[0] || userData?.email?.[0] || '?'}
+    </AvatarFallback>
+  </Avatar>
         <div className="flex flex-col overflow-hidden">
           <p className="text-md font-bold truncate">{userData?.name}</p>
           <p className="text-sm text-gray-600">{userData?.role}</p>
+        </div>
         </div>
       </div>
       <div className="flex gap-1 items-center justify-center">
