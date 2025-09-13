@@ -2,20 +2,55 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import {  Card, 
+  CardHeader, 
+  CardFooter, 
+  CardTitle, 
+  CardDescription, 
+  CardContent,
+  CardCompact,
+  CardSkeleton } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Image from 'next/image';
 
-// Info helper component
-function Info({ label, value }) {
+// Enhanced Info helper component with icons
+function Info({ label, value, icon }) {
   return (
     <div>
-      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+        {icon && <span>{icon}</span>}
+        {label}
+      </p>
       <p className="font-medium text-gray-800 dark:text-gray-200">{value || 'N/A'}</p>
     </div>
+  );
+}
+
+// Status Badge Component for consistent styling
+function StatusBadge({ status, variant = "default" }) {
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'active':
+        return 'bg-green-500/20 text-green-100';
+      case 'inactive':
+        return 'bg-yellow-500/20 text-yellow-100';
+      case 'manager':
+        return 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900 dark:text-green-300';
+      case 'member':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
+      default:
+        return 'bg-white/20 capitalize font-medium';
+    }
+  };
+
+  return (
+    <span className={`px-3 py-1 text-sm rounded-full font-medium capitalize whitespace-nowrap ${getVariantClasses()}`}>
+      {status || 'Unknown Status'}
+    </span>
   );
 }
 
@@ -250,88 +285,110 @@ export default function UserProfile() {
     return currentUser?.role === 'admin' && currentUser?.email !== user?.email;
   };
 
-  // Loading state
+  // Loading state - Enhanced with CardSkeleton
   if (loading) {
     return (
-      <div className="p-8 text-lg flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          <span>Loading user profile...</span>
+      <div className="p-6 sm:p-10 min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <CardSkeleton className="h-64" />
+          <CardSkeleton className="h-96" />
+          <CardSkeleton className="h-48" />
         </div>
       </div>
     );
   }
 
-  // Error state
+  // Error state - Enhanced with Card variants
   if (error) {
     return (
-      <div className="p-8 text-center min-h-[400px] flex items-center justify-center">
-        <div className="text-red-600 bg-red-50 dark:bg-red-950 p-6 rounded-lg border border-red-200 dark:border-red-800">
-          <h3 className="font-semibold mb-2">Error Loading Profile</h3>
-          <p>{error}</p>
-          <Button onClick={() => window.location.reload()} className="mt-4" variant="outline">
-            Try Again
-          </Button>
-        </div>
+      <div className="p-6 sm:p-10 min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Card variant="destructive" className="max-w-md">
+          <CardHeader>
+            <CardTitle size="lg">Error Loading Profile</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardFooter justify="center">
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
 
-  // Not found
-  if (!user) return <div className="p-8 text-center">User not found.</div>;
+  // Not found - Enhanced with proper Card structure
+  if (!user) {
+    return (
+      <div className="p-6 sm:p-10 min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Card>
+          <CardHeader>
+            <CardTitle>User Not Found</CardTitle>
+            <CardDescription>The requested user profile could not be found.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => router.back()} variant="outline">
+              Go Back
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   // Main render
   return (
     <div className="p-6 sm:p-10 min-h-screen bg-gray-50 dark:bg-gray-900">
       <Card className="max-w-4xl mx-auto shadow-xl rounded-2xl overflow-hidden">
-        <CardHeader className="bg-[#051224] text-white p-6">
+        <CardHeader 
+          className="bg-[#051224] text-white p-6"
+          action={
+            isEditing && (
+              <div className="mt-3">
+                <Label className="block">
+                  <span className="sr-only">Change Profile Image</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleFileChange}
+                    className="block w-full text-sm text-white file:mr-2 file:px-3 file:py-1 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-white/20 file:text-white hover:file:bg-white/30 file:cursor-pointer cursor-pointer"
+                    disabled={uploadingImg}
+                  />
+                </Label>
+                {uploadingImg && (
+                  <div className="flex items-center mt-2 text-sm">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Uploading...
+                  </div>
+                )}
+              </div>
+            )
+          }
+        >
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative flex-shrink-0">
-              <img
+              <Image
                 src={user.profileImgUrl || '/user.png'}
                 alt={`${user.name || 'User'}'s profile`}
+                width={96}
+                height={96}
                 className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
                 onError={(e) => (e.currentTarget.src = '/user.png')}
               />
-              {isEditing && (
-                <div className="mt-3">
-                  <Label className="block">
-                    <span className="sr-only">Change Profile Image</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handleFileChange}
-                      className="block w-full text-sm text-white file:mr-2 file:px-3 file:py-1 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-white/20 file:text-white hover:file:bg-white/30 file:cursor-pointer cursor-pointer"
-                      disabled={uploadingImg}
-                    />
-                  </Label>
-                  {uploadingImg && (
-                    <div className="flex items-center mt-2 text-sm">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Uploading...
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
             <div className="flex-grow">
-              <h1 className="text-3xl font-bold mb-1">{user.name || 'Unnamed User'}</h1>
-              <p className="text-blue-100 text-lg mb-2">{user.email}</p>
+              <CardTitle size="lg" as="h1" className="text-white mb-1">
+                {user.name || 'Unnamed User'}
+              </CardTitle>
+              <CardDescription className="text-blue-100 text-lg mb-2">
+                {user.email}
+              </CardDescription>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 text-sm rounded-full bg-white/20 capitalize font-medium">
-                  {user.role || 'Member'}
-                </span>
-                <span
-                  className={`px-3 py-1 text-sm rounded-full font-medium ${
-                    user.profileState === 'active'
-                      ? 'bg-green-500/20 text-green-100'
-                      : user.profileState === 'inactive'
-                      ? 'bg-yellow-500/20 text-yellow-100'
-                      : 'bg-red-500/20 text-red-100'
-                  }`}
-                >
-                  {user.profileState || 'Unknown Status'}
-                </span>
+                <StatusBadge status={user.role || 'Member'} />
+                <StatusBadge 
+                  status={user.profileState || 'Unknown Status'}
+                  variant={user.profileState === 'active' ? 'active' : 'inactive'}
+                />
               </div>
             </div>
           </div>
@@ -339,9 +396,12 @@ export default function UserProfile() {
 
         <CardContent className="p-6 space-y-8">
           <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
+            <CardTitle size="default" as="h2" className="mb-4 text-gray-800 dark:text-gray-200">
               Personal Information
-            </h2>
+            </CardTitle>
+            <CardDescription className="mb-6">
+              {isEditing ? 'Edit the information below to update the profile' : 'View detailed personal information'}
+            </CardDescription>
             {isEditing ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
@@ -438,8 +498,8 @@ export default function UserProfile() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Info label="Phone Number" value={user.phoneNumber} />
-                <Info label="Gender" value={user.gender} />
+                <Info label="Phone Number" value={user.phoneNumber} icon="📞" />
+                <Info label="Gender" value={user.gender} icon="⚧️" />
                 <Info
                   label="Date of Birth"
                   value={
@@ -451,9 +511,10 @@ export default function UserProfile() {
                         })
                       : null
                   }
+                  icon="🎂"
                 />
-                <Info label="Profile Status" value={user.profileState} />
-                
+                <Info label="Profile Status" value={user.profileState} icon="🟢" />
+
                 {/* Show status change date only when user is inactive */}
                 {user.profileState === 'inactive' && user.stateChangedAt && (
                   <Info 
@@ -466,10 +527,11 @@ export default function UserProfile() {
                       minute: '2-digit',
                       hour12: true
                     })}
+                    icon="📅"
                   />
                 )}
-                
-                <Info label="Role" value={user.role} />
+
+                <Info label="Role" value={user.role} icon="👤" />
                 <Info
                   label="Member Since"
                   value={
@@ -480,30 +542,35 @@ export default function UserProfile() {
                         })
                       : null
                   }
+                  icon="📆"
                 />
               </div>
             )}
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
+            <CardTitle size="default" as="h3" className="mb-4 text-gray-800 dark:text-gray-200">
               Projects & Involvement
-            </h3>
+            </CardTitle>
+            <CardDescription className="mb-6">
+              Current project assignments and role information
+            </CardDescription>
             {projects.filter((p) => p.userRoleInProject).length > 0 ? (
               <div className="grid gap-4">
                 {projects
                   .filter((p) => p.userRoleInProject)
                   .map((project) => (
-                    <div
+                    <CardCompact
                       key={project._id}
-                      className="p-4 border rounded-lg bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-200"
+                      hoverable
+                      className="bg-white dark:bg-gray-800 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex-grow">
-                          <h4 className="font-semibold text-gray-800 dark:text-gray-100 mb-1">
+                          <CardTitle size="sm" className="text-gray-800 dark:text-gray-100 mb-1">
                             {project.projectName}
-                          </h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          </CardTitle>
+                          <CardDescription className="text-sm text-gray-600 dark:text-gray-400">
                             Status:{' '}
                             <span
                               className={`font-medium ${
@@ -516,31 +583,31 @@ export default function UserProfile() {
                             >
                               {project.projectState || 'Unknown'}
                             </span>
-                          </p>
+                          </CardDescription>
                         </div>
-                        <span
-                          className={`px-3 py-1 text-sm font-medium rounded-full capitalize whitespace-nowrap ${
-                            project.userRoleInProject === 'manager'
-                              ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900 dark:text-green-300'
-                              : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                          }`}
-                        >
-                          {project.userRoleInProject}
-                        </span>
+                        <StatusBadge 
+                          status={project.userRoleInProject}
+                          variant={project.userRoleInProject === 'manager' ? 'manager' : 'member'}
+                        />
                       </div>
-                    </div>
+                    </CardCompact>
                   ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <p className="text-lg mb-2">No projects assigned</p>
-                <p className="text-sm">This user is not currently involved in any projects.</p>
-              </div>
+              <Card variant="warning">
+                <CardContent noPadding className="text-center py-8 px-6">
+                  <div className="text-6xl mb-4">📋</div>
+                  <CardTitle size="sm" className="mb-2">No Projects Assigned</CardTitle>
+                  <CardDescription>
+                    This user is not currently involved in any projects.
+                  </CardDescription>
+                </CardContent>
+              </Card>
             )}
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 p-6 bg-gray-50 dark:bg-gray-800">
+        <CardFooter justify="between" className="flex flex-col sm:flex-row items-center gap-3 p-6 bg-gray-50 dark:bg-gray-800">
           <Button variant="outline" onClick={() => router.back()}>
             ← Go Back
           </Button>

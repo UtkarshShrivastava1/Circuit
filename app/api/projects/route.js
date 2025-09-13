@@ -161,17 +161,11 @@ export async function GET(req) {
       console.error("Token verification failed:", error);
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
-
-    // Get projects with role-based filtering
-    // Admins see all projects; others see only projects with their email in participants
-    let filter = {};
-    if (decoded.role !== "admin") {
-      filter["participants.email"] = {
-        $regex: new RegExp(decoded.email, "i"), // case-insensitive match
-      };
-    }
-
-    const projects = await Project.find(filter).sort({ createdAt: -1 }).lean();
+const projects = await Project.find({}) // Remove the filter object
+      .populate('manager', 'name email') // Add manager population for better display
+      .populate('participants.userId', 'name email') // Add participant details
+      .sort({ createdAt: -1 })
+      .lean();
 
     console.log(`Found ${projects.length} projects for user ${decoded.email}`);
     return NextResponse.json(projects);
