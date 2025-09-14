@@ -422,18 +422,10 @@ const CreateProject = () => {
                         className="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:text-gray-300 dark:border-gray-700"
                       >
                         <option value="">Select Role</option>
-                        <option value="content">Content</option>
-                        <option value="research">Research</option>
-                        <option value="design">Design</option>
-                        <option value="development">Development</option>
-                        <option value="frontend">Frontend</option>
-                        <option value="backend">Backend</option>
-                        <option value="fullstack">Full Stack</option>
-                        <option value="testing">Testing</option>
-                        <option value="debugging">Debugging</option>
-                        <option value="deployment">Deployment</option>
-                        <option value="maintain">Maintain</option>
+                       <option value="project-manager">Project Manager</option>
+                        <option value="project-member">Project Member</option>
                       </select>
+                        
                     </div>
                     <div>
                       <Label htmlFor="responsibility" className="text-gray-700 dark:text-gray-300">
@@ -446,9 +438,21 @@ const CreateProject = () => {
                         className="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:text-gray-300 dark:border-gray-700"
                       >
                         <option value="">Select Responsibility</option>
-                        <option value="project-manager">Project Manager</option>
-                        <option value="project-member">Project Member</option>
+                             <option value="content">Content</option>
+                        <option value="research">Research</option>
+                        <option value="design">Design</option>
+                        <option value="development">Development</option>
+                        <option value="frontend">Frontend</option>
+                        <option value="backend">Backend</option>
+                        <option value="fullstack">Full Stack</option>
+                        <option value="testing">Testing</option>
+                        <option value="debugging">Debugging</option>
+                        <option value="deployment">Deployment</option>
+                        <option value="maintain">Maintain</option>
                       </select>
+
+
+                        
                     </div>
                     <div className="flex items-end">
                       <Button
@@ -467,53 +471,49 @@ const CreateProject = () => {
                     Project Members
                   </h3>
                   {participants.length > 0 ? (
-                    <ul className="space-y-3">
-                      {participants.map((p) => (
-                        <li
-                          key={p.email}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow transition-shadow duration-200"
-                        >
-                          <div className="flex items-center gap-3 grow">
-                            <Image
-                              src={p.profileImage}
-                              alt="User"
-                              width={40}
-                              height={40}
-                              className="rounded-full w-10 h-10 object-cover"
-                            />
-                            <div>
-                              <div className="font-semibold text-gray-900 dark:text-gray-100">
-                                {p.username}
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">
-                                {p.email}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-500">
-                                {p.userRole}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <div className="flex flex-col sm:items-start sm:w-32">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-36">
-                                Role: {p.roleInProject}
-                              </span>
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Responsibility: {p.responsibility}
-                              </span>
-                            </div>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="w-full sm:w-auto mt-2 sm:mt-0 px-3 py-1.5 text-sm font-medium whitespace-nowrap"
-                              onClick={() => handleRemoveParticipant(p.email)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+           <ul className="space-y-4">
+  {participants.map((p) => (
+    <li
+      key={p.email}
+      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-5 py-4 bg-white dark:bg-slate-900 rounded-lg border border-gray-300 dark:border-gray-700 shadow hover:shadow-md transition-shadow duration-300"
+    >
+      <div className="flex items-center gap-4 flex-grow overflow-hidden">
+        <Image
+          src={p.profileImage || "/user.png"}
+          alt="User"
+          width={48}
+          height={48}
+          className="rounded-full w-12 h-12 object-cover border-2 border-indigo-500 dark:border-indigo-400 flex-shrink-0"
+        />
+        <div className="truncate">
+          <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">{p.username}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400 truncate">{p.email}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-500 truncate uppercase tracking-wide">{p.userRole}</div>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex flex-col sm:items-start sm:w-36">
+          <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 truncate">
+            Role: {p.roleInProject}
+          </span>
+          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+            Responsibility: {p.responsibility}
+          </span>
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full sm:w-auto mt-2 sm:mt-0 px-4 py-1.5 text-sm font-semibold whitespace-nowrap"
+          onClick={() => handleRemoveParticipant(p.email)}
+        >
+          Remove
+        </Button>
+      </div>
+    </li>
+  ))}
+</ul>
+
+
                   ) : (
                     <div className="p-3 text-center rounded-lg bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm">
                       No participants added yet. Add members to proceed.

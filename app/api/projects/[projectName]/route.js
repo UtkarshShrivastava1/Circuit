@@ -25,10 +25,13 @@ export async function GET(request, { params }) {
   }
   return NextResponse.json(project);
 }
+
+// ---------------------------UPDATE CODE------------------------------------------------------------
 export async function PUT(req, { params }) {
   await dbConnect();
 
   const { projectName } = params;
+  console.log('project data : ',projectName)
   const data = await req.json();
 
   try {

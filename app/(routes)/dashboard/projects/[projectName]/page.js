@@ -577,17 +577,6 @@ const handlePostAnnouncement = async () => {
     participants,
   } = project;
 
-  // const formatDate = (dateStr) => {
-  //   if (!dateStr) return "N/A";
-  //   return new Date(dateStr).toLocaleDateString("en-GB", {
-  //     day: "2-digit",
-  //     month: "long",
-  //     year: "numeric",
-  //   });
-  // };
-
-  // console.log('End Date',formatDate(endDate));
-
   // Utility to format date to yyyy-mm-dd string for input[type='date']
 const toInputDate = (dateStr) => {
   if (!dateStr) return "";
@@ -598,7 +587,7 @@ const toInputDate = (dateStr) => {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
- console.log('End Date',toInputDate(endDate));
+//  console.log('End Date',toInputDate(endDate));
 
   const projectManager = participants.find(
     (p) => p.roleInProject === "project-manager"
@@ -640,7 +629,6 @@ const toInputDate = (dateStr) => {
                   <Label htmlFor="projectName">Project Name</Label>
                   <Input id="projectName" value={pname} readOnly />
                 </div>
-{/* {console.log('end data:',formatDate(endDate))} */}
                 <div className="space-y-1 w-full">
                   <Label htmlFor="projectState">Project State</Label>
                   <Input id="projectState" value={projectState} readOnly />
