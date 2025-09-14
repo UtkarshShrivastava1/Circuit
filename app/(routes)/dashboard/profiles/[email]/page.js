@@ -1,96 +1,142 @@
-'use client';
+"use client";
 
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Info helper component
 function Info({ label, value }) {
   return (
     <div>
       <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="font-medium text-gray-800 dark:text-gray-200">{value || 'N/A'}</p>
+      <p className="font-medium text-gray-800 dark:text-gray-200">
+        {value ?? "N/A"}
+      </p>
     </div>
   );
 }
 
 // Main UserProfile component
 export default function UserProfile() {
-  const { email } = useParams();
-  const decodedEmail = decodeURIComponent(email);
+  const params = useParams();
+  const rawEmail = params?.email;
+  // Only decode if it contains a percent-encoding character to avoid double-decode
+  const decodedEmail =
+    rawEmail && rawEmail.includes("%")
+      ? decodeURIComponent(rawEmail)
+      : rawEmail;
   const router = useRouter();
+
   const [user, setUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(Boolean(!user));
+  const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const mountedRef = useRef(true);
+
   const [form, setForm] = useState({
-    name: '',
-    phoneNumber: '',
-    gender: '',
-    profileState: '',
-    role: '',
-    profileImgUrl: '',
-    dateOfBirth: '',
+    name: "",
+    phoneNumber: "",
+    gender: "",
+    profileState: "",
+    role: "",
+    profileImgUrl: "",
+    dateOfBirth: "",
   });
 
-  // Fetch user, session, and projects (once)
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Fetch user, session, and projects (once per email)
+  useEffect(() => {
+    if (!decodedEmail) {
+      setError("Invalid profile URL");
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
     async function fetchData() {
-      const token = localStorage.getItem('token');
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       if (!token) {
-        router.push('/login');
+        // Use replace so user can't go back to protected page
+        router.replace("/login");
         return;
       }
+
       setLoading(true);
-      setError('');
+      setError("");
 
       try {
         // 1. Fetch the user being viewed
-        const userRes = await fetch(`/api/user/${encodeURIComponent(decodedEmail)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-cache',
-        });
+        const userRes = await fetch(
+          `/api/user?email=${encodeURIComponent(decodedEmail)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-cache",
+            signal,
+          }
+        );
+
         if (!userRes.ok) {
-          if (userRes.status === 404) throw new Error('User not found');
-          if (userRes.status === 403) throw new Error('Access denied');
-          throw new Error('Failed to fetch user data');
+          if (userRes.status === 404) throw new Error("User not found");
+          if (userRes.status === 403 || userRes.status === 401)
+            throw new Error("Access denied");
+          throw new Error("Failed to fetch user data");
         }
         const userData = await userRes.json();
 
         // 2. Fetch the current logged-in user (for edit perms)
-        const sessionRes = await fetch('/api/auth/session', {
+        const sessionRes = await fetch("/api/auth/session", {
           headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-cache',
+          cache: "no-cache",
+          signal,
         });
-        if (!sessionRes.ok) throw new Error('Not authenticated');
+        if (!sessionRes.ok) throw new Error("Not authenticated");
         const sessionData = await sessionRes.json();
 
         // 3. Fetch all projects (for assignment display)
-        const projectsRes = await fetch('/api/projects', {
+        const projectsRes = await fetch("/api/projects", {
           headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-cache',
+          cache: "no-cache",
+          signal,
         });
         const projectsData = projectsRes.ok ? await projectsRes.json() : [];
+
+        if (!mountedRef.current) return;
 
         setCurrentUser(sessionData);
         setUser(userData);
         setForm({
-          name: userData.name || '',
-          phoneNumber: userData.phoneNumber || '',
-          gender: userData.gender || '',
-          profileState: userData.profileState || '',
-          role: userData.role || 'member',
-          profileImgUrl: userData.profileImgUrl || '',
-          dateOfBirth: userData.dateOfBirth ? userData.dateOfBirth.split('T')[0] : '',
+          name: userData.name || "",
+          phoneNumber: userData.phoneNumber || "",
+          gender: userData.gender || "",
+          profileState: userData.profileState || "",
+          role: userData.role || "member",
+          profileImgUrl: userData.profileImgUrl || "",
+          dateOfBirth: userData.dateOfBirth
+            ? userData.dateOfBirth.split("T")[0]
+            : "",
         });
 
         // 4. Assign "userRoleInProject" for each project this user is in
@@ -98,23 +144,29 @@ export default function UserProfile() {
           projectsData.map((p) => ({
             ...p,
             userRoleInProject:
-              p.participants?.find((u) => u.email === decodedEmail)?.roleInProject ?? '',
+              p.participants?.find((u) => u.email === decodedEmail)
+                ?.roleInProject ?? "",
           }))
         );
       } catch (err) {
-        console.error('Fetch error:', err);
-        setError(err.message);
-        if (
-          err.message.toLowerCase().includes('unauthorized') ||
-          err.message.toLowerCase().includes('not authenticated')
-        ) {
-          router.push('/login');
+        if (err.name === "AbortError") return;
+        console.error("Fetch error:", err);
+        const msg = err?.message || "Unknown error";
+        if (mountedRef.current) {
+          setError(msg);
+          // Redirect to login for auth errors
+          if (/unauthorized|not authenticated|access denied/i.test(msg)) {
+            router.replace("/login");
+          }
         }
       } finally {
-        setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     }
+
     fetchData();
+
+    return () => controller.abort();
   }, [decodedEmail, router]);
 
   // Handle edits to the form
@@ -130,52 +182,54 @@ export default function UserProfile() {
 
   // Handle avatar upload
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     // File validation
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
+      toast.error("Please upload a valid image file (JPEG, PNG, or WebP)");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB');
+      toast.error("Image size must be less than 5MB");
       return;
     }
 
     setUploadingImg(true);
-    setError('');
+    setError("");
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/upload', {
-        method: 'POST',
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Upload failed');
+        throw new Error(errorData.error || "Upload failed");
       }
       const { url } = await res.json();
+      if (!mountedRef.current) return;
       setUser((prev) => ({ ...prev, profileImgUrl: url }));
       setForm((prev) => ({ ...prev, profileImgUrl: url }));
-      toast.success('Image uploaded successfully!');
+      toast.success("Image uploaded successfully!");
     } catch (err) {
-      console.error('Upload error:', err);
-      toast.error('Image upload failed: ' + err.message);
+      console.error("Upload error:", err);
+      toast.error("Image upload failed: " + (err?.message || "Unknown error"));
     } finally {
-      setUploadingImg(false);
+      if (mountedRef.current) setUploadingImg(false);
     }
   };
 
   // Submit profile updates
   const handleUpdate = async () => {
-    const token = localStorage.getItem('token');
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
-      toast.error('Authentication required.');
-      router.push('/login');
+      toast.error("Authentication required.");
+      router.replace("/login");
       return;
     }
 
@@ -186,52 +240,63 @@ export default function UserProfile() {
       const trimmedForm = Object.fromEntries(
         Object.entries(form).map(([key, value]) => [
           key,
-          typeof value === 'string' ? value.trim() : value,
+          typeof value === "string" ? value.trim() : value,
         ])
       );
       if (trimmedForm.name && trimmedForm.name.length < 2)
-        throw new Error('Name must be at least 2 characters long');
-      if (trimmedForm.phoneNumber && !/^\+?[\d\s\-()]+$/.test(trimmedForm.phoneNumber))
-        throw new Error('Please enter a valid phone number');
+        throw new Error("Name must be at least 2 characters long");
+      if (
+        trimmedForm.phoneNumber &&
+        !/^\+?[\d\s\-()]+$/.test(trimmedForm.phoneNumber)
+      )
+        throw new Error("Please enter a valid phone number");
 
       // Only send fields that have values
       const submittedData = Object.fromEntries(
-        Object.entries(trimmedForm).filter(([_, v]) => v !== undefined && v !== '')
+        Object.entries(trimmedForm).filter(
+          ([_, v]) => v !== undefined && v !== ""
+        )
       );
 
       // PATCH to backend
-      const res = await fetch(`/api/user/${encodeURIComponent(decodedEmail)}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(submittedData),
-      });
+      const res = await fetch(
+        `/api/user?email=${encodeURIComponent(decodedEmail)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(submittedData),
+        }
+      );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Update failed');
+        throw new Error(data.error || "Update failed");
       }
 
       // Success: update UI
       const updatedUser = await res.json();
+      if (!mountedRef.current) return;
       setUser(updatedUser);
       setForm({
-        name: updatedUser.name || '',
-        phoneNumber: updatedUser.phoneNumber || '',
-        gender: updatedUser.gender || '',
-        profileState: updatedUser.profileState || '',
-        role: updatedUser.role || 'member',
-        profileImgUrl: updatedUser.profileImgUrl || '',
-        dateOfBirth: updatedUser.dateOfBirth ? updatedUser.dateOfBirth.split('T')[0] : '',
+        name: updatedUser.name || "",
+        phoneNumber: updatedUser.phoneNumber || "",
+        gender: updatedUser.gender || "",
+        profileState: updatedUser.profileState || "",
+        role: updatedUser.role || "member",
+        profileImgUrl: updatedUser.profileImgUrl || "",
+        dateOfBirth: updatedUser.dateOfBirth
+          ? updatedUser.dateOfBirth.split("T")[0]
+          : "",
       });
       setIsEditing(false);
-      toast.success('Profile updated successfully!');
+      toast.success("Profile updated successfully!");
     } catch (err) {
-      console.error('Update error:', err);
-      toast.error('Update failed: ' + err.message);
+      console.error("Update error:", err);
+      toast.error("Update failed: " + (err?.message || "Unknown error"));
     } finally {
-      setUpdating(false);
+      if (mountedRef.current) setUpdating(false);
     }
   };
 
@@ -240,14 +305,14 @@ export default function UserProfile() {
     return (
       currentUser &&
       (currentUser.email === user?.email ||
-        currentUser.role === 'admin' ||
-        currentUser.role === 'manager')
+        currentUser.role === "admin" ||
+        currentUser.role === "manager")
     );
   };
 
   // Role edit permissions (admin only, not self)
   const canEditRole = () => {
-    return currentUser?.role === 'admin' && currentUser?.email !== user?.email;
+    return currentUser?.role === "admin" && currentUser?.email !== user?.email;
   };
 
   // Loading state
@@ -269,7 +334,11 @@ export default function UserProfile() {
         <div className="text-red-600 bg-red-50 dark:bg-red-950 p-6 rounded-lg border border-red-200 dark:border-red-800">
           <h3 className="font-semibold mb-2">Error Loading Profile</h3>
           <p>{error}</p>
-          <Button onClick={() => window.location.reload()} className="mt-4" variant="outline">
+          <Button
+            onClick={() => window.location.reload()}
+            className="mt-4"
+            variant="outline"
+          >
             Try Again
           </Button>
         </div>
@@ -280,7 +349,7 @@ export default function UserProfile() {
   // Not found
   if (!user) return <div className="p-8 text-center">User not found.</div>;
 
-  // Main render
+  // Main render (kept your original structure & UI)
   return (
     <div className="p-6 sm:p-10 min-h-screen bg-gray-50 dark:bg-gray-900">
       <Card className="max-w-4xl mx-auto shadow-xl rounded-2xl overflow-hidden">
@@ -288,10 +357,10 @@ export default function UserProfile() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative flex-shrink-0">
               <img
-                src={user.profileImgUrl || '/user.png'}
-                alt={`${user.name || 'User'}'s profile`}
+                src={user.profileImgUrl || "/user.png"}
+                alt={`${user.name || "User"}'s profile`}
                 className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
-                onError={(e) => (e.currentTarget.src = '/user.png')}
+                onError={(e) => (e.currentTarget.src = "/user.png")}
               />
               {isEditing && (
                 <div className="mt-3">
@@ -315,22 +384,24 @@ export default function UserProfile() {
               )}
             </div>
             <div className="flex-grow">
-              <h1 className="text-3xl font-bold mb-1">{user.name || 'Unnamed User'}</h1>
+              <h1 className="text-3xl font-bold mb-1">
+                {user.name || "Unnamed User"}
+              </h1>
               <p className="text-blue-100 text-lg mb-2">{user.email}</p>
               <div className="flex flex-wrap gap-2">
                 <span className="px-3 py-1 text-sm rounded-full bg-white/20 capitalize font-medium">
-                  {user.role || 'Member'}
+                  {user.role || "Member"}
                 </span>
                 <span
                   className={`px-3 py-1 text-sm rounded-full font-medium ${
-                    user.profileState === 'active'
-                      ? 'bg-green-500/20 text-green-100'
-                      : user.profileState === 'inactive'
-                      ? 'bg-yellow-500/20 text-yellow-100'
-                      : 'bg-red-500/20 text-red-100'
+                    user.profileState === "active"
+                      ? "bg-green-500/20 text-green-100"
+                      : user.profileState === "inactive"
+                      ? "bg-yellow-500/20 text-yellow-100"
+                      : "bg-red-500/20 text-red-100"
                   }`}
                 >
-                  {user.profileState || 'Unknown Status'}
+                  {user.profileState || "Unknown Status"}
                 </span>
               </div>
             </div>
@@ -345,7 +416,10 @@ export default function UserProfile() {
             {isEditing ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="name" className="text-sm font-medium mb-2 block">
+                  <Label
+                    htmlFor="name"
+                    className="text-sm font-medium mb-2 block"
+                  >
                     Full Name *
                   </Label>
                   <Input
@@ -358,7 +432,10 @@ export default function UserProfile() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phoneNumber" className="text-sm font-medium mb-2 block">
+                  <Label
+                    htmlFor="phoneNumber"
+                    className="text-sm font-medium mb-2 block"
+                  >
                     Phone Number
                   </Label>
                   <Input
@@ -371,7 +448,10 @@ export default function UserProfile() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="gender" className="text-sm font-medium mb-2 block">
+                  <Label
+                    htmlFor="gender"
+                    className="text-sm font-medium mb-2 block"
+                  >
                     Gender
                   </Label>
                   <select
@@ -389,7 +469,10 @@ export default function UserProfile() {
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="dateOfBirth" className="text-sm font-medium mb-2 block">
+                  <Label
+                    htmlFor="dateOfBirth"
+                    className="text-sm font-medium mb-2 block"
+                  >
                     Date of Birth
                   </Label>
                   <Input
@@ -400,9 +483,13 @@ export default function UserProfile() {
                     onChange={handleDateChange}
                   />
                 </div>
-                {(currentUser?.role === 'admin' || currentUser?.role === 'manager') && (
+                {(currentUser?.role === "admin" ||
+                  currentUser?.role === "manager") && (
                   <div>
-                    <Label htmlFor="profileState" className="text-sm font-medium mb-2 block">
+                    <Label
+                      htmlFor="profileState"
+                      className="text-sm font-medium mb-2 block"
+                    >
                       Profile Status
                     </Label>
                     <select
@@ -414,13 +501,15 @@ export default function UserProfile() {
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
-                      <option value="banned">Banned</option>
                     </select>
                   </div>
                 )}
                 {canEditRole() && (
                   <div>
-                    <Label htmlFor="role" className="text-sm font-medium mb-2 block">
+                    <Label
+                      htmlFor="role"
+                      className="text-sm font-medium mb-2 block"
+                    >
                       Role
                     </Label>
                     <select
@@ -445,23 +534,41 @@ export default function UserProfile() {
                   label="Date of Birth"
                   value={
                     user.dateOfBirth
-                      ? new Date(user.dateOfBirth).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
+                      ? new Date(user.dateOfBirth).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
                         })
                       : null
                   }
                 />
                 <Info label="Profile Status" value={user.profileState} />
+
+                {user.profileState === "inactive" && user.stateChangedAt && (
+                  <Info
+                    label="Set Inactive On"
+                    value={new Date(user.stateChangedAt).toLocaleDateString(
+                      "en-US",
+                      {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      }
+                    )}
+                  />
+                )}
+
                 <Info label="Role" value={user.role} />
                 <Info
                   label="Member Since"
                   value={
                     user.createdAt
-                      ? new Date(user.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
+                      ? new Date(user.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
                         })
                       : null
                   }
@@ -489,25 +596,25 @@ export default function UserProfile() {
                             {project.projectName}
                           </h4>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Status:{' '}
+                            Status:{" "}
                             <span
                               className={`font-medium ${
-                                project.projectState === 'completed'
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : project.projectState === 'ongoing'
-                                  ? 'text-blue-600 dark:text-blue-400'
-                                  : 'text-yellow-600 dark:text-yellow-400'
+                                project.projectState === "completed"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : project.projectState === "ongoing"
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-yellow-600 dark:text-yellow-400"
                               }`}
                             >
-                              {project.projectState || 'Unknown'}
+                              {project.projectState || "Unknown"}
                             </span>
                           </p>
                         </div>
                         <span
                           className={`px-3 py-1 text-sm font-medium rounded-full capitalize whitespace-nowrap ${
-                            project.userRoleInProject === 'manager'
-                              ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900 dark:text-green-300'
-                              : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                            project.userRoleInProject === "manager"
+                              ? "bg-green-100 text-green-700 border border-green-300 dark:bg-green-900 dark:text-green-300"
+                              : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                           }`}
                         >
                           {project.userRoleInProject}
@@ -519,7 +626,9 @@ export default function UserProfile() {
             ) : (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <p className="text-lg mb-2">No projects assigned</p>
-                <p className="text-sm">This user is not currently involved in any projects.</p>
+                <p className="text-sm">
+                  This user is not currently involved in any projects.
+                </p>
               </div>
             )}
           </div>
@@ -551,7 +660,7 @@ export default function UserProfile() {
                       Saving...
                     </span>
                   ) : (
-                    'Save Changes'
+                    "Save Changes"
                   )}
                 </Button>
               </>
@@ -563,7 +672,11 @@ export default function UserProfile() {
           </div>
         </CardFooter>
       </Card>
-      <ToastContainer position="bottom-right" autoClose={5000} theme="colored" />
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        theme="colored"
+      />
     </div>
   );
 }

@@ -78,7 +78,7 @@ export async function POST(req) {
       manager: managerId,
       participants: participants.map((p) => ({
         userId: p.userId,
-        email: p.email.toLowerCase(),
+        email: p.email.toLowerCase(), // normalize email for consistent filtering
         username: p.username,
         roleInProject: p.roleInProject,
         responsibility: p.responsibility,
@@ -111,6 +111,7 @@ export async function POST(req) {
 export async function GET(req) {
   await dbConnect();
   try {
+    // Extract token from Authorization header
     const authHeader = req.headers.get("authorization");
     // console.log("Auth Header received:", authHeader);
 
@@ -132,12 +133,7 @@ export async function GET(req) {
       console.error("Token verification failed:", error);
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
-
-    // Get projects with role-based filtering
-    // Admins see all projects; others see only projects with their email in participants
-   
-
-  const projects = await Project.find({}) // Remove the filter object
+const projects = await Project.find({}) // Remove the filter object
       .populate('manager', 'name email') // Add manager population for better display
       .populate('participants.userId', 'name email') // Add participant details
       .sort({ createdAt: -1 })
@@ -153,4 +149,3 @@ export async function GET(req) {
     );
   }
 }
-   

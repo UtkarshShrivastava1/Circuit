@@ -3,7 +3,7 @@ import dbConnect from "@/lib/mongodb";
 import Attendance from "@/app/models/Attendance";
 import { verifyToken } from "@/lib/auth";
 
-export async function POST(req) {
+ export async function POST(req) {
   try {
     await dbConnect();
 
@@ -20,10 +20,14 @@ export async function POST(req) {
       return NextResponse.json({ error: "Work mode is required (office or wfh)" }, { status: 400 });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use this for checking existing attendance (midnight time)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-    let existing = await Attendance.findOne({ userId: decoded.id, date: today });
+    // Use this for storing the actual attendance time
+    const currentTime = new Date();
+
+    let existing = await Attendance.findOne({ userId: decoded.id, date: todayStart });
     if (existing) {
       return NextResponse.json({ error: "Attendance already marked for today" }, { status: 400 });
     }
@@ -32,6 +36,7 @@ export async function POST(req) {
       userId: decoded.id,
       status: status || "present",
       workMode,
+      date: currentTime, // Store the actual current time instead of midnight
     });
 
     return NextResponse.json({ success: true, attendance });

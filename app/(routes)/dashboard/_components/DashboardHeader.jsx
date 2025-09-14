@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { HiMenuAlt3 } from "react-icons/hi";
 import axios from "axios";
-import NotificationBell from "./NotificationBell";
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 function DashboardHeader() {
   const [userData, setUserData] = useState(null);
@@ -19,15 +19,15 @@ function DashboardHeader() {
   useEffect(() => {
     async function fetchSession() {
       try {
-        const res = await axios.get("/api/auth/session", { withCredentials: true });
+        const res = await axios.get("/api/auth/session");
+        // console.log("Full Session response:", JSON.stringify(res.data, null, 2));
         if (res.status !== 200) {
           setUserData(null);
           return;
         }
         setUserData(res.data);
-        console.log("userData : ",res.data);
       } catch (error) {
-        console.error("Failed to fetch session", error);
+        console.log("Session error:", error); // Add this debug line
         setUserData(null);
       }
     }
@@ -36,47 +36,41 @@ function DashboardHeader() {
 
   const handleSignOut = async () => {
     try {
-      await axios.post("/api/auth/logout", {}, { withCredentials: true });
+      await axios.post("/api/auth/logout"); // <-- Use POST, consistent endpoint
       setUserData(null);
       router.push("/login");
     } catch (error) {
       console.error("Sign out error:", error);
-      router.push("/login"); // Always redirect, even if logout fails
+      router.push("/login"); // <-- Always redirect, even if logout fails
     }
   };
 
   return (
     <div className="p-3 bg-white dark:bg-slate-950 shadow-sm border-b flex justify-between items-center">
-      {/* Left: Profile */}
       <div className="flex items-center gap-2">
-        {userData?.profileImgUrl ? (
-          <div className="relative w-14 h-14">
-            <UserHoverCard email={userData.email} />
-          </div>
-        ) : (
-          <Image
-            src="/user.png"
-            className="rounded-full border-2 border-slate-300"
-            alt="Default Profile"
-            width={56}
-            height={56}
-          />
-        )}
+        <div onClick={() => {
+      if (userData?.email) {
+        router.push(`/dashboard/profiles/${encodeURIComponent(userData.email)}`);
+      }
+    }}
+    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -m-2 transition-colors">
+  <Avatar className="w-14 h-14 flex-shrink-0">
+    <AvatarImage src={userData?.profileImgUrl || '/user.png'} />
+    <AvatarFallback>
+      {userData?.name?.[0] || userData?.email?.[0] || '?'}
+    </AvatarFallback>
+  </Avatar>
         <div className="flex flex-col overflow-hidden">
           <p className="text-md font-bold truncate">{userData?.name}</p>
           <p className="text-sm text-gray-600">{userData?.role}</p>
         </div>
+        </div>
       </div>
-
-      {/* Right: Actions */}
       <div className="flex gap-1 items-center justify-center">
-        {userData?._id && <NotificationBell userId={userData._id} />}
         <ModeToggle />
         <Button onClick={handleSignOut} variant="outline" className="ml-2">
           Sign Out
         </Button>
-
-        {/* Mobile Menu */}
         <div className="md:hidden">
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>

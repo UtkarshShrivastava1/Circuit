@@ -422,8 +422,17 @@ const CreateProject = () => {
                         className="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:text-gray-300 dark:border-gray-700"
                       >
                         <option value="">Select Role</option>
-                        <option value="project-manager">Project Manager</option>
-                        <option value="project-member">Project Member</option>
+                        <option value="content">Content</option>
+                        <option value="research">Research</option>
+                        <option value="design">Design</option>
+                        <option value="development">Development</option>
+                        <option value="frontend">Frontend</option>
+                        <option value="backend">Backend</option>
+                        <option value="fullstack">Full Stack</option>
+                        <option value="testing">Testing</option>
+                        <option value="debugging">Debugging</option>
+                        <option value="deployment">Deployment</option>
+                        <option value="maintain">Maintain</option>
                       </select>
                     </div>
                     <div>
@@ -437,17 +446,8 @@ const CreateProject = () => {
                         className="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:text-gray-300 dark:border-gray-700"
                       >
                         <option value="">Select Responsibility</option>
-                        <option value="content">Content</option>
-                        <option value="research">Research</option>
-                        <option value="design">Design</option>
-                        <option value="development">Development</option>
-                        <option value="frontend">Frontend</option>
-                        <option value="backend">Backend</option>
-                        <option value="fullstack">Full Stack</option>
-                        <option value="testing">Testing</option>
-                        <option value="debugging">Debugging</option>
-                        <option value="deployment">Deployment</option>
-                        <option value="maintain">Maintain</option>
+                        <option value="project-manager">Project Manager</option>
+                        <option value="project-member">Project Member</option>
                       </select>
                     </div>
                     <div className="flex items-end">

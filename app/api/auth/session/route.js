@@ -26,7 +26,7 @@ export async function POST(req) {
           gender: 'other',
           phoneNumber: '0000000000',
           dateOfBirth: '1990-01-01',
-          profileImgUrl: '/user.png',
+          profileImgUrl:'/user.png',
         });
         console.log('Created admin user in database:', adminUser);
       }
@@ -37,6 +37,7 @@ export async function POST(req) {
         email: adminUser.email,
         role: adminUser.role,
         profileState: adminUser.profileState,
+        profileImgUrl: adminUser.profileImgUrl, // ✅ Added profileImgUrl
       };
 
       await setSession(adminSession);
@@ -98,6 +99,7 @@ export async function POST(req) {
       email: user.email,
       role: user.role,
       profileState: user.profileState,
+      profileImgUrl: user.profileImgUrl, // ✅ Added profileImgUrl
     };
 
     await setSession(userSession);
@@ -118,6 +120,7 @@ export async function POST(req) {
         _id: user._id,
         email: user.email,
         name: user.name,
+        profileImgUrl: user.profileImgUrl, // ✅ Added profileImgUrl
       },
     });
   } catch (err) {
@@ -140,6 +143,7 @@ export async function GET() {
     email: session.email,
     role: session.role,
     profileState: session.profileState,
+    profileImgUrl: session.profileImgUrl, // ✅ Added profileImgUrl
   });
 }
 

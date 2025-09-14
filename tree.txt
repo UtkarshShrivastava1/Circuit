@@ -1,0 +1,202 @@
+
+
+├── app
+│   ├── (auth)
+│   │   ├── login
+│   │   │   ├── page.js
+│   ├── (routes)
+│   │   ├── dashboard
+│   │   │   ├── _components
+│   │   │   │   ├── CheckList.jsx
+│   │   │   │   ├── ConformationModal.jsx
+│   │   │   │   ├── DashboardHeader.jsx
+│   │   │   │   ├── Model.jsx
+│   │   │   │   ├── ProjectCard.jsx
+│   │   │   │   ├── SideNav.jsx
+│   │   │   │   ├── UserHoverCaard.jsx
+│   │   │   ├── attendance-management
+│   │   │   │   ├── page.jsx
+│   │   │   ├── create
+│   │   │   │   ├── page.js
+│   │   │   ├── create-project
+│   │   │   │   ├── page.js
+│   │   │   ├── leave
+│   │   │   │   ├── page.jsx
+│   │   │   ├── manage-tasks
+│   │   │   │   ├── [taskId]
+│   │   │   │   │   ├── open
+│   │   │   │   │   ├── update
+│   │   │   │   ├── CreateTaskForm.jsx
+│   │   │   │   ├── page.js
+│   │   │   ├── notifications
+│   │   │   │   ├── page.js
+│   │   │   ├── profiles
+│   │   │   │   ├── [email]
+│   │   │   │   │   ├── page.js
+│   │   │   │   ├── page.js
+│   │   │   ├── projects
+│   │   │   │   ├── [projectName]
+│   │   │   │   │   ├── update
+│   │   │   │   │   ├── page.js
+│   │   │   │   ├── page.js
+│   │   │   ├── layout.js
+│   │   │   ├── page.js
+│   ├── _components
+│   │   ├── DarkModeBtn.jsx
+│   │   ├── Header.jsx
+│   │   ├── Hero.jsx
+│   │   ├── NotificationPermission.js
+│   │   ├── UserHoverCard.jsx
+│   │   ├── theme-provider.jsx
+│   ├── api
+│   │   ├── admin
+│   │   │   ├── seed
+│   │   │   │   ├── route.js
+│   │   │   ├── route.js
+│   │   ├── attendance
+│   │   │   ├── approve
+│   │   │   │   ├── [id]
+│   │   │   │   │   ├── route.js
+│   │   │   ├── mark
+│   │   │   │   ├── route.js
+│   │   │   ├── my-latest
+│   │   │   │   ├── route.js
+│   │   │   ├── pending
+│   │   │   │   ├── route.js
+│   │   │   ├── report
+│   │   │   │   ├── route.js
+│   │   │   ├── today
+│   │   │   │   ├── route.js
+│   │   ├── auth
+│   │   │   ├── login
+│   │   │   │   ├── route.js
+│   │   │   ├── logout
+│   │   │   │   ├── route.js
+│   │   │   ├── session
+│   │   │   │   ├── route.js
+│   │   ├── leave
+│   │   │   ├── approve
+│   │   │   │   ├── [id]
+│   │   │   │   │   ├── route.js
+│   │   │   ├── pending
+│   │   │   │   ├── route.js
+│   │   │   ├── route.js
+│   │   ├── leave-rule
+│   │   │   ├── route.js
+│   │   ├── notificationPermission
+│   │   │   ├── route.js
+│   │   ├── notifications
+│   │   │   ├── create
+│   │   │   │   ├── route.js
+│   │   │   ├── index
+│   │   │   │   ├── index.js
+│   │   │   ├── read
+│   │   │   │   ├── read.js
+│   │   │   ├── route.js
+│   │   ├── projectUpdates
+│   │   │   ├── addAnnouncement
+│   │   │   │   ├── route.js
+│   │   │   ├── addUpdate
+│   │   │   │   ├── route.js
+│   │   │   ├── announcements
+│   │   │   │   ├── route.js
+│   │   │   ├── updates
+│   │   │   │   ├── route.js
+│   │   ├── projects
+│   │   │   ├── [projectName]
+│   │   │   │   ├── route.js
+│   │   │   ├── route.js
+│   │   ├── seed-admin
+│   │   │   ├── route.js
+│   │   ├── sendNotifications
+│   │   │   ├── route.js
+│   │   ├── tasks
+│   │   │   ├── [taskId]
+│   │   │   │   ├── checklist
+│   │   │   │   │   ├── [itemId]
+│   │   │   │   ├── status
+│   │   │   │   │   ├── route.js
+│   │   │   │   ├── tickets
+│   │   │   │   │   ├── [ticketId]
+│   │   │   │   │   ├── route.js
+│   │   │   │   ├── route.js
+│   │   │   ├── route.js
+│   │   ├── upload
+│   │   │   ├── route.js
+│   │   ├── user
+│   │   │   ├── [email]
+│   │   │   │   ├── route.js
+│   │   │   ├── route.js
+│   ├── models
+│   │   ├── Announcement.js
+│   │   ├── Attendance.js
+│   │   ├── Leave.js
+│   │   ├── LeaveRule.js
+│   │   ├── Notification.js
+│   │   ├── ProjectUpdate.js
+│   │   ├── Tasks.js
+│   │   ├── User.js
+│   │   ├── project.js
+│   ├── not-allowed
+│   │   ├── page.js
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.js
+│   ├── page.js
+├── components
+│   ├── ui
+│   │   ├── avatar.jsx
+│   │   ├── button.jsx
+│   │   ├── card.jsx
+│   │   ├── command.jsx
+│   │   ├── dialog.jsx
+│   │   ├── dropdown-menu.jsx
+│   │   ├── hover-card.jsx
+│   │   ├── input.jsx
+│   │   ├── label.jsx
+│   │   ├── popover.jsx
+│   │   ├── select.jsx
+│   │   ├── sheet.jsx
+│   │   ├── table.jsx
+│   │   ├── tabs.jsx
+│   │   ├── textarea.jsx
+├── lib
+│   ├── middleware
+│   │   ├── authenticate.js
+│   │   ├── checkRole.js
+│   │   ├── middleware.js
+│   │   ├── multerMiddleware.js
+│   ├── auth.js
+│   ├── cloudinary.js
+│   ├── crypto.js
+│   ├── firebase.js
+│   ├── firebaseAdmin.js
+│   ├── getUserData.js
+│   ├── hash.js
+│   ├── mongodb.js
+│   ├── session.js
+│   ├── utils.js
+│   ├── verifyToken.js
+├── public
+│   ├── Logo.png
+│   ├── firebase-messaging-sw.js
+│   ├── loadingImg.jpg
+│   ├── user.png
+├── scripts
+│   ├── test-send-email.js
+├── .env
+├── .eslintrc.json
+├── .gitignore
+├── README.md
+├── components.json
+├── jsconfig.json
+├── next.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── tailwind.config.js
+├── tree.js
+├── tree.txt
+├── vercel.json
+
+Finished writing tree to tree.txt
