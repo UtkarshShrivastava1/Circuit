@@ -586,11 +586,13 @@ const handlePostAnnouncement = async () => {
   };
 
   const projectManager = participants.find(
-    (p) => p.responsibility === "project-manager"
+    (p) => p.roleInProject === "project-manager"
   );
   const projectMembers = participants.filter(
-    (p) => p.responsibility === "project-member"
+    (p) => p.roleInProject === "project-member"
   );
+
+  console.log('Project Manager :',projectManager , 'Member : ',projectMembers,'partispants:',participants);
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
