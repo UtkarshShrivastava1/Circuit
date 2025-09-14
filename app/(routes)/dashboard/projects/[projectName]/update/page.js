@@ -404,17 +404,11 @@ const UpdateProject = () => {
                       className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                     >
                       <option value="">Select Role</option>
-                      <option value="content">Content</option>
-                      <option value="research">Research</option>
-                      <option value="design">Design</option>
-                      <option value="development">Development</option>
-                      <option value="frontend">Frontend</option>
-                      <option value="backend">Backend</option>
-                      <option value="fullstack">Full Stack</option>
-                      <option value="testing">Testing</option>
-                      <option value="debugging">Debugging</option>
-                      <option value="deployment">Deployment</option>
-                      <option value="maintain">Maintain</option>
+                      <option value="project-manager"
+                               disabled={participants.some(p => p.responsibility === "project-manager")}>
+                                Project Manager</option>
+                              <option value="project-member">Project Member</option>
+                     
                     </select>
                   </div>
                 </div>
@@ -426,12 +420,20 @@ const UpdateProject = () => {
                               id="responsibility"
                               value={selectedResponsibility}
                               onChange={(e) => setSelectedResponsibility(e.target.value)}
+                               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                             >
                               <option value="">Select Responsibility</option>
-                              <option value="project-manager"
-                               disabled={participants.some(p => p.responsibility === "project-manager")}>
-                                Project Manager</option>
-                              <option value="project-member">Project Member</option>
+                               <option value="content">Content</option>
+                               <option value="research">Research</option>
+                               <option value="design">Design</option>
+                               <option value="development">Development</option>
+                               <option value="frontend">Frontend</option>
+                               <option value="backend">Backend</option>
+                               <option value="fullstack">Full Stack</option>
+                               <option value="testing">Testing</option>
+                               <option value="debugging">Debugging</option>
+                               <option value="deployment">Deployment</option>
+                               <option value="maintain">Maintain</option>
                         </select>
 
                   </div>
