@@ -50,7 +50,7 @@ export default function TaskDetailPage() {
         return;
       }
       toast.success('Task deleted successfully');
-      router.push('/dashboard/tasks');
+      router.push('/dashboard/manage-tasks');
     } catch (err) {
       toast.error('Network error deleting task');
       console.error(err);

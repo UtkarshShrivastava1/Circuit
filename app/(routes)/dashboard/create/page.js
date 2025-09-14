@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Loading from "../_components/Loading";
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
@@ -163,7 +164,7 @@ export default function CreateUser() {
     }
   };
 
-  if (loading) return <div className="text-center">Loading...</div>;
+  if (loading) return <div className="text-center"><Loading message="Loading"/></div>;
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">

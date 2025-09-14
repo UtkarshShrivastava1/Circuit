@@ -149,6 +149,7 @@ const CreateProject = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // console.log('formData : ',formData);
     if (formData.projectName.length < 3) {
       toast.error('Project name must be at least 3 characters long.');
       return;
@@ -165,10 +166,12 @@ const CreateProject = () => {
     const projectData = {
       ...formData,
       managerId: managerParticipant.userId,
+      
       participants: participants.map(({ userId, roleInProject, responsibility, email, username }) => ({
         userId, roleInProject, responsibility, email, username,
       })),
     };
+    console.log('project Data : ',projectData)
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error('Authentication required.');

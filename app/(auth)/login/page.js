@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Loading from '@/app/(routes)/dashboard/_components/Loading';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -113,7 +114,7 @@ export default function LoginForm() {
           >
             {loading ? (
               <>
-                <Loader2 className="animate-spin mr-2 h-5 w-5 inline" /> Loading...
+                <Loader2 className="animate-spin mr-2 h-5 w-5 inline" /> <Loading message="Please wait, fetching data..." />
               </>
             ) : (
               'Login'

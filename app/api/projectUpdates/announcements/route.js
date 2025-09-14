@@ -1,7 +1,8 @@
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Announcement from "@/app/models/Announcement";
+import Project from "@/app/models/project";
 
-export const dynamic = 'force-dynamic'; // Mark route as dynamic
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
@@ -11,29 +12,28 @@ export async function GET(req) {
     const projectName = searchParams.get("projectName");
 
     if (!projectName) {
-      return new Response(JSON.stringify({ announcement: [] }), { status: 200 });
+      return new Response(JSON.stringify({ projectName: null, announcements: [] }), { status: 200 });
     }
 
-    const docs = await Announcement.find({ projectName })
-      .populate({
-        path: "fromUserId",
-        select: "email name profileImgUrl",
-      })
-      .sort({ createdAt: -1 })
-      .lean();
+    // Select projectName and announcements only (file is nested inside announcements)
+    const project = await Project.findOne({ projectName }).select("projectName announcements").lean();
 
-    const enriched = docs.map((a) => ({
-      ...a,
-      fromUser: a.fromUserId
-        ? {
-            email: a.fromUserId.email,
-            name: a.fromUserId.name,
-            profileImgUrl: a.fromUserId.profileImgUrl,
-          }
-        : null,
-    }));
+    if (!project) {
+      return new Response(JSON.stringify({ projectName: null, announcements: [] }), { status: 200 });
+    }
 
-    return new Response(JSON.stringify({ announcement: enriched }), { status: 200 });
+    const announcements = Array.isArray(project.announcements) ? project.announcements : [];
+        // console.log('announcement :',announcements);
+    // Sort announcements by createdAt descending (newest first)
+    const sortedAnnouncements = announcements.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    // Return announcements including nested 'file' field inside each announcement
+    return new Response(
+      JSON.stringify({ projectName: project.projectName, announcements: sortedAnnouncements }),
+      { status: 200 }
+    );
   } catch (err) {
     console.error("Error fetching announcements:", err);
     return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });

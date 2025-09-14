@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { HiMenuAlt3 } from "react-icons/hi";
 import axios from "axios";
+import NotificationBell from "./NotificationBell";
 
 function DashboardHeader() {
   const [userData, setUserData] = useState(null);
@@ -18,13 +19,15 @@ function DashboardHeader() {
   useEffect(() => {
     async function fetchSession() {
       try {
-        const res = await axios.get("/api/auth/session");
+        const res = await axios.get("/api/auth/session", { withCredentials: true });
         if (res.status !== 200) {
           setUserData(null);
           return;
         }
         setUserData(res.data);
+        console.log("userData : ",res.data);
       } catch (error) {
+        console.error("Failed to fetch session", error);
         setUserData(null);
       }
     }
@@ -33,17 +36,18 @@ function DashboardHeader() {
 
   const handleSignOut = async () => {
     try {
-      await axios.post("/api/auth/logout"); // <-- Use POST, consistent endpoint
+      await axios.post("/api/auth/logout", {}, { withCredentials: true });
       setUserData(null);
       router.push("/login");
     } catch (error) {
       console.error("Sign out error:", error);
-      router.push("/login"); // <-- Always redirect, even if logout fails
+      router.push("/login"); // Always redirect, even if logout fails
     }
   };
 
   return (
     <div className="p-3 bg-white dark:bg-slate-950 shadow-sm border-b flex justify-between items-center">
+      {/* Left: Profile */}
       <div className="flex items-center gap-2">
         {userData?.profileImgUrl ? (
           <div className="relative w-14 h-14">
@@ -63,11 +67,16 @@ function DashboardHeader() {
           <p className="text-sm text-gray-600">{userData?.role}</p>
         </div>
       </div>
+
+      {/* Right: Actions */}
       <div className="flex gap-1 items-center justify-center">
+        {userData?._id && <NotificationBell userId={userData._id} />}
         <ModeToggle />
         <Button onClick={handleSignOut} variant="outline" className="ml-2">
           Sign Out
         </Button>
+
+        {/* Mobile Menu */}
         <div className="md:hidden">
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>

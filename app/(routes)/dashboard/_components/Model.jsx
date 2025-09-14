@@ -24,7 +24,8 @@ const Modal = ({ isOpen, onClose, message }) => {
           <DialogTitle>Message</DialogTitle>
           <DialogDescription>
             <Card className="p-5 text-black dark:text-slate-100">
-              {message}
+           {message || "No message available"}
+
             </Card>
           </DialogDescription>
         </DialogHeader>

@@ -1,40 +1,73 @@
-// app/api/projectUpdates/announcements/route.js
-
-// Use relative imports to avoid alias issues from within app/api/*
-// From this file to lib/mongodb.js and models/Announcement.js:
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Announcement from "@/app/models/Announcement";
+import Project from "@/app/models/project";
+import { verifyAuth } from "@/lib/auth";
+import { checkRole } from "@/lib/middleware/checkRole";
 
-export const dynamic = 'force-dynamic'; // Mark route as dynamic due to req.url usage
+export async function POST(req) {
+  await dbConnect();
 
-export async function GET(req) {
   try {
-    await dbConnect();
-
-    const { searchParams } = new URL(req.url);
-    const projectName = searchParams.get("projectName");
-
-    // If projectName missing, respond with empty array
-    if (!projectName) {
-      return new Response(JSON.stringify({ announcement: [] }), { status: 200 });
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.split(" ")[1];
+    const authUser = await verifyAuth(token);
+    if (!authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+// console.log('authUser :',authUser)
+    const roleCheck = checkRole(authUser, ["admin", "manager"]);
+    if (!roleCheck.ok) {
+      return NextResponse.json({ error: roleCheck.message }, { status: roleCheck.status });
     }
 
-    // Fetch announcements for the project, sorted newest first
-    const docs = await Announcement.find({ projectName })
-      .sort({ createdAt: -1 })
-      .lean();
+    const body = await req.json();
+    // console.log('body: ',body);
+    const { projectName, announcement } = body;
 
-    return new Response(
-      JSON.stringify({ announcement: Array.isArray(docs) ? docs : [] }),
-      { status: 200 }
+
+    if (!projectName || !announcement || !announcement.post || !announcement.post.msg) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const project = await Project.findOne({ projectName });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // Parse date from string, fallback to now if invalid
+    let  parsedDate = announcement.date ? new Date(announcement.date) : new Date();
+    if (isNaN(parsedDate.getTime())) {
+      // Invalid date string fallback
+      parsedDate = new Date();
+    }
+
+    const newAnnouncement = {
+      projectName, 
+      msg: announcement.post.msg,
+      date: parsedDate,
+      postedBy: {
+        _id: authUser.id,
+        name: authUser.role,
+        email: authUser.email,
+      },
+      file: announcement.post.file,
+      originalName: announcement.post.originalName, // add this
+    };
+
+    console.log('newAnnouncement :',newAnnouncement)
+
+    project.announcements.push(newAnnouncement);
+    await project.save();
+
+    return NextResponse.json(
+      { message: "Announcement posted", announcement: newAnnouncement },
+      { status: 201 }
     );
-  } catch (e) {
-    console.error("announcements GET error:", e);
-    return new Response(JSON.stringify({ msg: "Internal server error" }), { status: 500 });
+  } catch (err) {
+    console.error("Failed to post announcement:", err);
+    return NextResponse.json({ error: "Failed to post announcement" }, { status: 500 });
   }
 }
-
-
-// Optional: If you later need to create announcements via POST from a different page,
-// you can add a POST handler here (your UI currently posts to /api/projectUpdates/addAnnouncement).
-// Keeping GET only for now to satisfy the listing in your Project Details page.

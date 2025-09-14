@@ -1,30 +1,23 @@
-// pages/api/notifications/read.js
-import dbConnect from "@/lib/dbConnect";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import dbConnect from "@/lib/mongodb";
 import Notification from "@/models/Notification";
 
-export default async function handler(req, res) {
+export async function PATCH(req) {
   await dbConnect();
+  const token = cookies().get("token")?.value;
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (req.method !== "PATCH") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const { notificationId } = await req.json();
 
-  try {
-    const { notificationId, email } = req.body;
+  const notif = await Notification.findOneAndUpdate(
+    { _id: notificationId, recipient: decoded.id },
+    { read: true },
+    { new: true }
+  );
 
-    const updated = await Notification.findOneAndUpdate(
-      { _id: notificationId, "toEmail.email": email },
-      { $set: { "toEmail.$.state": "read" } },
-      { new: true }
-    );
-
-    if (!updated) {
-      return res.status(404).json({ error: "Notification not found" });
-    }
-
-    return res.status(200).json({ success: true, notification: updated });
-  } catch (error) {
-    console.error("Error marking as read:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  if (!notif) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ success: true, notif });
 }

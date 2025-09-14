@@ -9,6 +9,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import UserHoverCard from '@/app/_components/UserHoverCard'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import DeleteNotificationModal from "@/app/(routes)/dashboard/_components/DeleteNotificationModal";
+import { Input } from '@/components/ui/input'
 
 // Utility: check if file is image
 const isImage = (url) => /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(url)
@@ -22,7 +25,12 @@ export default function NotificationPage() {
   const [isPublic, setIsPublic] = useState(true)
   const [selectedUsers, setSelectedUsers] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(null);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  // existing states...
+  const [selectedNotification, setSelectedNotification] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+   const [selectedId, setSelectedId] = useState(null);
 
   // Only admin/manager can send notifications
   const canSendNotifications = currentUser && ['admin', 'manager'].includes(currentUser.role)
@@ -48,6 +56,7 @@ export default function NotificationPage() {
         const res = await fetch('/api/user/')
         const data = await res.json()
         if (Array.isArray(data)) setAllUsers(data)
+          // console.log('AllUsers data :',data)
       } catch (err) {
         console.error('Error fetching users:', err)
       }
@@ -57,15 +66,17 @@ export default function NotificationPage() {
 
   // Fetch notifications
   useEffect(() => {
-    if (!currentUser?.email) return
+    if (!currentUser?.email && !currentUser?.role ) return
     async function fetchNotifications() {
       try {
-        const res = await fetch(`/api/notifications?email=${encodeURIComponent(currentUser.email)}`)
+        const res = await fetch(`/api/notifications?email=${encodeURIComponent(currentUser.email)}&role=${currentUser.role}`)
         if (!res.ok) {
           const errorData = await res.json()
           throw new Error(errorData.error || 'Failed to fetch notifications')
         }
         const data = await res.json()
+        // console.log("Notification data :",data)
+
         if (Array.isArray(data)) setNotifications(data)
       } catch (err) {
         setError(err)
@@ -146,6 +157,26 @@ export default function NotificationPage() {
     }
   }
 
+  // Delete handler
+  const handleDeleteNotification = async (id) => {
+     if (!selectedId) return;
+       setLoading(true);
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to delete notification')
+
+      setNotifications((prev) => prev.filter((n) => n._id !== id))
+      toast.success('Notification deleted successfully')
+    } catch (err) {
+      toast.error(err.message || 'Error deleting notification')
+    }  finally {
+      setLoading(false);
+      setDeleteModalOpen(false);
+    }
+  }
+
   // Error UI
   if (error) {
     return (
@@ -185,7 +216,7 @@ export default function NotificationPage() {
             {/* Send Notification */}
             {canSendNotifications && (
               <TabsContent value="send" className="mt-0">
-                <Card className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                <Card className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-400 shadow-sm mt-4">
                   <form onSubmit={handleSendNotification} className="w-full p-4 sm:p-6 space-y-4">
                     <div>
                       <Label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -204,7 +235,7 @@ export default function NotificationPage() {
                       <Label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                         Attach File
                       </Label>
-                      <input
+                      <Input
                         type="file"
                         onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                         className="block w-full text-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-md p-2 focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-500 focus:outline-none"
@@ -212,24 +243,24 @@ export default function NotificationPage() {
                     </div>
 
                     <div className="flex gap-4">
-                      <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input
+                      <Label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <Input
                           type="radio"
                           checked={isPublic}
                           onChange={() => setIsPublic(true)}
                           className="h-4 w-4 accent-blue-500"
                         />
                         Public
-                      </label>
-                      <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input
+                      </Label>
+                      <Label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <Input
                           type="radio"
                           checked={!isPublic}
                           onChange={() => setIsPublic(false)}
                           className="h-4 w-4 accent-blue-500"
                         />
                         Private
-                      </label>
+                      </Label>
                     </div>
 
                     {!isPublic && (
@@ -239,7 +270,7 @@ export default function NotificationPage() {
                         </Label>
                         <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                           {allUsers.map((user) => (
-                            <label
+                            <Label
                               key={user.email}
                               className="flex items-center gap-2 p-2 border border-gray-200 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
                             >
@@ -255,8 +286,8 @@ export default function NotificationPage() {
                                 }}
                                 className="h-4 w-4 accent-blue-500"
                               />
-                              <span className="text-sm truncate">{user.email}</span>
-                            </label>
+                              <span className="text-sm truncate">{user.name}</span>
+                            </Label>
                           ))}
                         </div>
                       </div>
@@ -276,7 +307,7 @@ export default function NotificationPage() {
 
             {/* View Notifications */}
             <TabsContent value="view" className="mt-0">
-              <Card className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-xl">
+              <Card className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-xl  mt-4">
                 <CardContent className="p-4 sm:p-6">
                   {notifications.length === 0 ? (
                     <div className="py-6 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
@@ -315,7 +346,7 @@ export default function NotificationPage() {
                                 {n.fromEmail}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {n.date}
+                                {new Date(n.date).toLocaleDateString().split("T")[0]}
                               </p>
                               <span
                                 className={`inline-block w-fit px-2 py-1 rounded-full text-xs ${
@@ -330,25 +361,32 @@ export default function NotificationPage() {
                             <p className="mt-1 mb-2 text-gray-700 dark:text-gray-300">
                               {n.msg?.msgcontent}
                             </p>
-                            {n.msg?.source && n.msg.source !== 'No Files' ? (
-                              isImage(n.msg.source) ? (
-                                <div className="mt-2">
-                                  <img
-                                    src={n.msg.source}
-                                    alt="file"
-                                    className="rounded-lg max-w-full h-auto max-h-48 object-contain"
-                                  />
-                                </div>
-                              ) : (
-                                <Link
-                                  href={n.msg.source}
-                                  target="_blank"
-                                  className="inline-flex items-center mt-2 text-blue-600 dark:text-blue-400 text-sm hover:underline"
-                                >
-                                  <span className="font-medium">View File</span>
-                                </Link>
-                              )
-                            ) : null}
+                             {/* Buttons: Open + Delete */}
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedNotification(n)
+                              setShowModal(true)
+                            }}
+                          >
+                            Open
+                          </Button>
+                          {['admin', 'manager'].includes(currentUser?.role) && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                  setSelectedId(n._id);
+                                  setDeleteModalOpen(true);
+                                  }}
+
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </div>
                           </div>
                         </li>
                       ))}
@@ -361,15 +399,50 @@ export default function NotificationPage() {
         </Card>
       </div>
 
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        newestOnTop={false}
-        closeOnClick
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
+      {/* Modal for open */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notification Details</DialogTitle>
+          </DialogHeader>
+          {selectedNotification && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                <strong>From:</strong> {selectedNotification.fromEmail}
+              </p>
+              <p>{selectedNotification.msg?.msgcontent}</p>
+              {selectedNotification.msg?.source &&
+              selectedNotification.msg.source !== 'No Files' ? (
+                isImage(selectedNotification.msg.source) ? (
+                  <img
+                    src={selectedNotification.msg.source}
+                    alt="file"
+                    className="rounded-lg max-w-full h-auto max-h-60"
+                  />
+                ) : (
+                  <Link
+                    href={selectedNotification.msg.source}
+                    target="_blank"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    View File
+                  </Link>
+                )
+              ) : null}
+              <p className="text-xs text-gray-500">
+                {new Date(selectedNotification.date).toLocaleString().split("T")[0]}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+       <DeleteNotificationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={() => handleDeleteNotification(selectedId)}
+        loading={loading}
       />
+      <ToastContainer position="top-center" autoClose={5000} />
     </div>
   )
 }

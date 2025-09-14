@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-
 // Participant schema
 const participantSchema = new mongoose.Schema({
   userId: {
@@ -26,25 +25,17 @@ const participantSchema = new mongoose.Schema({
   },
 });
 
-
-// Work update schema
-const workUpdateSchema = new mongoose.Schema({
-  msg: { type: String, required: true },
-  source: { type: String }, // optional
-});
-
-// Update schema
-const updateSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  date: { type: String, required: true },
-  workUpdate: { type: workUpdateSchema, required: true },
-});
-
-// Announcement schema
+// Announcement schema (embedded)
 const announcementSchema = new mongoose.Schema({
   msg: { type: String, required: true },
-  date: { type: String, required: true },
-  postedBy: { type: String, required: true },
+  date: { type: Date, required: true, default: Date.now },
+  postedBy: {
+    _id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+  },
+   file: { type: String, default: "No Files" },
+    originalName: {type: String}, 
 });
 
 // Main project schema
@@ -55,7 +46,7 @@ const projectSchema = new mongoose.Schema(
       required: true,
       trim: true,
       unique: true,
-      match: /^[a-zA-Z0-9-_]+$/,
+      match: /^[a-zA-Z0-9-_ ]+$/,
     },
     projectState: {
       type: String,
@@ -69,21 +60,22 @@ const projectSchema = new mongoose.Schema(
     },
     startDate: { type: Date, required: true },
     endDate: { type: Date },
-    
-    // ✅ Link to manager (who is a User with role "manager")
+
+    // Manager reference 
     manager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    // ✅ Other participants
     participants: { type: [participantSchema], default: [] },
-  },
+
+    // Add announcements array (embedded subdocuments)
+    announcements: { type: [announcementSchema], default: [] },
+},
   { timestamps: true }
 );
 
-const Project =
-  mongoose.models.Project || mongoose.model("Project", projectSchema);
+const Project = mongoose.models.Project || mongoose.model("Project", projectSchema);
 
 export default Project;

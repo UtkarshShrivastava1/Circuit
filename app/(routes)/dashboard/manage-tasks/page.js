@@ -121,7 +121,7 @@ function ManageAllTasks() {
       }
 
       // NOTE: Use taskId and ticketToDelete here
-      const res = await fetch(`/api/tasks/${taskId}/tickets/${ticketToDelete}`, {
+      const res = await fetch(`/api/ticket/${ticketToDelete}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

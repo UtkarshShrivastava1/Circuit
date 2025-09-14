@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/command";
 import Image from "next/image";
 import { CaretSortIcon } from "@radix-ui/react-icons";
+import Loading from "../../../_components/Loading";
 
 const UpdateProject = () => {
   const [formData, setFormData] = useState({
@@ -220,7 +221,7 @@ const UpdateProject = () => {
     }
   };
 
-  if (!currentUserRole) return <div className="text-center">Loading...</div>;
+  if (!currentUserRole) return <div className="text-center"><Loading message="Loading"/></div>;
 
   const selectedUserObj = selectedUser
     ? allUsers.find((u) => u.email === selectedUser)

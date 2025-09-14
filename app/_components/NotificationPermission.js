@@ -5,12 +5,16 @@ const NotificationPermission = () => {
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
-    // Fetch current logged-in user email from your session API
     const fetchUserEmail = async () => {
       try {
-        const res = await fetch("/api/auth/session");
+        const res = await fetch("/api/auth/session", {
+          method: "GET",
+          credentials: "include", // ✅ include cookie
+        });
+
         if (res.ok) {
           const data = await res.json();
+          // console.log('data   : ', data);
           return data.email || null;
         }
       } catch (error) {
@@ -18,7 +22,6 @@ const NotificationPermission = () => {
       }
       return null;
     };
-
 
     const requestAndSavePermission = async (userEmail) => {
       if (!userEmail) return;
@@ -28,14 +31,12 @@ const NotificationPermission = () => {
           const permission = await Notification.requestPermission();
 
           if (permission === "granted") {
-            await fetch("/api/notificationsPermission", {
+            await fetch("/api/notificationPermission", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 email: userEmail,
-                notificationPermission: permission, // expected to be 'granted'
+                notificationPermission: permission,
                 time: new Date().toISOString(),
               }),
             });
@@ -46,7 +47,7 @@ const NotificationPermission = () => {
           setIsRegistered(true);
         }
       } catch (error) {
-        console.error("Error requesting notification permission or saving to MongoDB:", error);
+        console.error("Error requesting notification permission:", error);
       }
     };
 

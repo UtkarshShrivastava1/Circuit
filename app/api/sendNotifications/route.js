@@ -1,56 +1,20 @@
-import { NextResponse } from 'next/server';
-import { firestore } from '@/lib/firebaseAdmin';
-import admin from 'firebase-admin';
+// /app/api/notifications/route.js
+import dbConnect from "@/lib/mongodb";
+import Notification from "@/app/models/Notification.model";
 
-export async function POST(request) {
-  try {
-    const requestBody = await request.json();
+export async function POST(req) {
+  await dbConnect();
+  const { senderId, receiverId, message } = await req.json();
 
-    if (!requestBody || !requestBody.email || !requestBody.notification) {
-      return NextResponse.json(
-        { message: 'Invalid request body. Email and notification are required.' },
-        { status: 400 }
-      );
-    }
+  const notification = await Notification.create({ senderId, receiverId, message });
+  return new Response(JSON.stringify(notification), { status: 201 });
+}
 
-    const { email, notification } = requestBody;
+export async function GET(req) {
+  await dbConnect();
+  const { searchParams } = new URL(req.url);
+  const userId = searchParams.get("userId");
 
-    // Fetch the tokens associated with the specified email
-    const tokensSnapshot = await firestore
-      .collection('pushNotifications')
-      .where('email', '==', email)
-      .get();
-
-    if (tokensSnapshot.empty) {
-      return NextResponse.json({ message: 'No tokens found for the specified email.' }, { status: 404 });
-    }
-
-    // Extract tokens from the documents
-    const tokens = tokensSnapshot.docs.map((doc) => doc.data().token);
-
-    if (tokens.length === 0) {
-      return NextResponse.json({ message: 'No tokens available for the specified email.' }, { status: 404 });
-    }
-
-    // Create the message payload
-    const message = {
-      data: {
-        title: notification.title,
-        body: notification.body,
-        
-        
-      },
-      tokens,  // Array of FCM tokens
-    };
-
-    // Send notifications to each token
-    const response = await admin.messaging().sendEachForMulticast(message);
-
-    // console.log('FCM response:', response);
-
-    return NextResponse.json({ message: 'Notification sent successfully!', response }, { status: 200 });
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    return NextResponse.json({ message: 'Error sending notification.', error: error.message }, { status: 500 });
-  }
+  const notifications = await Notification.find({ receiverId: userId }).sort({ createdAt: -1 });
+  return new Response(JSON.stringify(notifications), { status: 200 });
 }

@@ -1,5 +1,5 @@
 import dbConnect from "@/lib/mongodb";
-import Notification from "@/app/models/Notification";
+import Notification from "@/app/models/Notification.model";
 
 export async function POST(req) {
   await dbConnect();

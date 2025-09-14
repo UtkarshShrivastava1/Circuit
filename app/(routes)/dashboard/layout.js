@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import SideNav from "./_components/SideNav";
 import DashboardHeader from "./_components/DashboardHeader";
 import { useRouter } from "next/navigation";
+import Loading from "./_components/Loading";
 
 function Layout({ children }) {
   const router = useRouter();
@@ -43,7 +44,8 @@ function Layout({ children }) {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="loader">Loading...</div>
+        <div className="loader"><Loading message="Please wait, fetching data..." />
+</div>
         {/* Replace with your loader spinner/component */}
       </div>
     );
