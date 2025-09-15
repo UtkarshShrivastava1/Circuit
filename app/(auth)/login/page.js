@@ -339,8 +339,15 @@ export default function LoginForm() {
                 {/* Form Header with elegant styling */}
                 <div className="text-center mb-8 lg:mb-12">
                   <div className="relative mb-6">
-                    <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-3xl mx-auto flex items-center justify-center shadow-lg">
-                      <Lock className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
+                    <div className="w-18 h-18  mx-auto flex items-center justify-center ">
+                       <Image
+                                  src={"/Logo.png"}
+                                  className="rounded-full object-cover"
+                                  alt="Circuit Logo"
+                                  width={100}
+                                  height={100}
+                                  priority
+                                />
                     </div>
                     <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-3xl blur-lg -z-10"></div>
                   </div>

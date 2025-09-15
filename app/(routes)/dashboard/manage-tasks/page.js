@@ -184,8 +184,8 @@ function ManageAllTasks() {
                 <tr className="text-left text-sm font-medium text-gray-700 dark:text-slate-300">
                   <th className="p-3">Title</th>
                   <th className="p-3">Project</th>
-                  <th className="p-3">Manager</th>
-                  <th className="p-3">Members</th>
+                  {/* <th className="p-3">Manager</th> */}
+                  <th className="p-3">Assiged</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Actions</th>
                 </tr>
@@ -202,11 +202,11 @@ function ManageAllTasks() {
                       </span>
                     </td>
                     
-                    <td className="p-3">{task.manager?.email || '-'}</td>
+                    {/* <td className="p-3">{task.manager?.email || '-'}</td> */}
                     <td className="p-3">
                       {(task.assignees || [])
                         .filter(Boolean)
-                        .map(a => a.user?.email || a.user?.name || '')
+                        .map(a => a.user?.name|| a.user?.email || '')
                         .join(', ') || '-'}
                     </td>
                     <td className="p-3">
