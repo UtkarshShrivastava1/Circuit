@@ -74,13 +74,13 @@ function ManageAllTasks() {
         }
 
         const tasksData = await resTasks.json();
-        setTasks(tasksData);
+        setTasks(tasksData.slice().reverse());
         console.log('task data : ',tasksData)
         setError('');
 
         // Extract tickets from all tasks
         const allTickets = tasksData.flatMap(task => task.tickets || []);
-        setTickets(allTickets);
+        setTickets(allTickets.slice().reverse());
         console.log('Fetched tickets:', allTickets);
       } catch (err) {
         setError('Failed to load data');
@@ -177,8 +177,8 @@ function ManageAllTasks() {
               <thead className="bg-gray-100 dark:bg-slate-800">
                 <tr className="text-left text-sm font-medium text-gray-700 dark:text-slate-300">
                   <th className="p-3">Title</th>
-                  <th className="p-3">Manager</th>
-                  <th className="p-3">Members</th>
+                  {/* <th className="p-3">Manager</th> */}
+                  <th className="p-3">Assigned</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Actions</th>
                 </tr>
@@ -187,11 +187,11 @@ function ManageAllTasks() {
                 {tasks.map(task => (
                   <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="p-3">{task.title}</td>
-                    <td className="p-3">{task.manager?.email || '-'}</td>
+                    {/* <td className="p-3">{task.manager?.email || '-'}</td> */}
                     <td className="p-3">
                       {(task.assignees || [])
                         .filter(Boolean)
-                        .map(a => a.user?.email || a.user?.name || '')
+                        .map(a => a.user?.name||   a.user?.email || '')
                         .join(', ') || '-'}
                     </td>
                     <td className="p-3">

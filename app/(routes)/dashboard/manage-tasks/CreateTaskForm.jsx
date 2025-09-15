@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated, socket}) {
+export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated, socket }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [participants, setParticipants] = useState([]);
@@ -14,14 +14,52 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [checklist, setChecklist] = useState([]);
-
-  // console.log(projectId, projectName, currentUser, onTaskCreated, socket)
-
-  // New checklist item input
+  const [managers, setManagers] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [managerId, setManagerId] = useState('');
+  const [memberIds, setMemberIds] = useState([]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
-
   const [error, setError] = useState('');
+  // const [checklist, setChecklist] = useState([]); b
+// Not null or undefined, use [] for arrays.
+
   const router = useRouter();
+
+  function toggleChecklistItem(index) {
+  setChecklist(prev => {
+    const checklistCopy = [...prev];
+    if (checklistCopy[index]) {
+      checklistCopy[index].isCompleted = !checklistCopy[index].isCompleted;
+      return checklistCopy;
+    }
+    return prev; // fallback, no mutation
+  });
+}
+
+
+  // Unique participant resolver
+  function getUniqueParticipants() {
+    const participantMap = new Map();
+    [...managers, ...members].forEach(participant => {
+      const id = participant.userId || participant._id;
+      if (id && !participantMap.has(id)) {
+        participantMap.set(id, participant);
+      }
+    });
+    return Array.from(participantMap.values);
+  }
+
+  // Enhanced checkbox handler for multi-select users
+  function handleMemberCheckboxChange(memberId) {
+    setMemberIds(prevIds => {
+      const cleanIds = [...new Set(prevIds)];
+      if (cleanIds.includes(memberId)) {
+        return cleanIds.filter(id => id !== memberId);
+      } else {
+        return [...cleanIds, memberId];
+      }
+    });
+  }
 
   useEffect(() => {
     async function fetchParticipants() {
@@ -31,6 +69,8 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
         if (!res.ok) throw new Error('Failed to load project participants');
         const project = await res.json();
         setParticipants(project.participants || []);
+        setManagers(project.managers || []);
+        setMembers(project.members || []);
       } catch (e) {
         setError(e.message);
         setParticipants([]);
@@ -55,195 +95,106 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
     setChecklist(newChecklist);
   }
 
-  // async function handleSubmit(e) {
-  //   e.preventDefault();
-  //   setError('');
-  //   if (!title.trim() || !description.trim()) {
-  //     setError('Please fill in both title and description.');
-  //     return;
-  //   }
-  //   if (assigneeIds.length === 0) {
-  //     setError('Please select at least one assignee.');
-  //     return;
-  //   }
-
-  //   const token = localStorage.getItem('token');
-  //   if (!token) return router.push('/login');
-
-  //   setSubmitting(true);
-  //   try {
-  //     const payload = {
-  //       title: title.trim(),
-  //       description: description.trim(),
-  //       projectId,
-  //       projectName,
-  //       userId: currentUser._id,
-  //       assignees: assigneeIds.map(id => ({ user: id, state: 'assigned' })),
-  //       priority,
-  //       estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
-  //       dueDate: dueDate ? new Date(dueDate) : undefined,
-  //       checklist: checklist.map(item => ({
-  //         item: item.item,
-  //         isCompleted: item.isCompleted,
-  //         // completedBy and completedAt will be set later on update
-  //       })),
-  //     };
-
-  //     console.log("task payLoad :",payload)
-
-  //     const res = await fetch('/api/tasks', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify(payload),
-  //     });
-
-  //     if (!res.ok) throw new Error('Failed to create task');
-
-  //      // --- Real-time notifications to assignees ---
-  //     assigneeIds.forEach(userId => {
-  //       socket.emit('sendNotification', {
-  //         senderId: currentUser._id,
-  //         receiverId: userId,
-  //         message: `New task assigned: "${title}" in project ${projectName}`,
-  //         taskId: newTask._id,
-  //       });
-  //     });
-
-  //     toast.success('Task created successfully!');
-  //     setTitle('');
-  //     setDescription('');
-  //     setPriority('medium');
-  //     setEstimatedHours('');
-  //     setDueDate('');
-  //     setAssigneeIds([]);
-  //     setChecklist([]);
-  //     onTaskCreated?.();
-  //   } catch (err) {
-  //     console.error(err);
-  //     setError(err.message);
-  //     toast.error(err.message || 'Failed to create task');
-  //   } finally {
-  //     setSubmitting(false);
-  //   }
-  // }
-
   async function handleSubmit(e) {
-  e.preventDefault();
-  setError('');
-  if (!title.trim() || !description.trim()) {
-    setError('Please fill in both title and description.');
-    return;
-  }
-  if (assigneeIds.length === 0) {
-    setError('Please select at least one assignee.');
-    return;
-  }
-
-  const token = localStorage.getItem('token');
-  if (!token) return router.push('/login');
-
-  setSubmitting(true);
-  try {
-    const payload = {
-      title: title.trim(),
-      description: description.trim(),
-      projectId,
-      projectName,
-      userId: currentUser._id,
-      assignees: assigneeIds.map(id => ({ user: id, state: 'assigned' })),
-      priority,
-      estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
-      ...(dueDate && { dueDate: new Date(dueDate) }),
-      checklist: checklist.map(item => ({
-        item: item.item,
-        isCompleted: item.isCompleted,
-      })),
-    };
-
-    console.log("task payload :", payload);
-
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error('Failed to create task');
-
-    const newTask = await res.json();
-
-    // --- Real-time notifications to assignees ---
-    assigneeIds.forEach(userId => {
-      socket.emit('sendNotification', {
-        senderId: currentUser._id,
-        receiverId: userId,
-        message: `New task assigned: "${title}" in project ${projectName}`,
-        taskId: newTask._id,
+    e.preventDefault();
+    setError('');
+    if (!title.trim() || !description.trim()) {
+      setError('Please fill in both title and description.');
+      return;
+    }
+    if (assigneeIds.length === 0 && memberIds.length === 0) {
+      setError('Please select at least one assignee.');
+      return;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) return router.push('/login');
+    setSubmitting(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        projectId,
+        projectName,
+        userId: currentUser._id,
+        assignees: [...new Set([...assigneeIds, ...memberIds])].map(id => ({ user: id, state: 'assigned' })),
+        priority,
+        estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
+        ...(dueDate && { dueDate: new Date(dueDate) }),
+        checklist: checklist.map(item => ({
+          item: item.item,
+          isCompleted: item.isCompleted,
+        })),
+      };
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       });
-    });
-
-    toast.success('Task created successfully!');
-    setTitle('');
-    setDescription('');
-    setPriority('medium');
-    setEstimatedHours('');
-    setDueDate('');
-    setAssigneeIds([]);
-    setChecklist([]);
-    onTaskCreated?.();
-  } catch (err) {
-    console.error(err);
-    setError(err.message);
-    toast.error(err.message || 'Failed to create task');
-  } finally {
-    setSubmitting(false);
+      if (!res.ok) throw new Error('Failed to create task');
+      const newTask = await res.json();
+      assigneeIds.forEach(userId => {
+        sendNotification(userId, {
+          senderId: currentUser._id,
+          receiverId: userId,
+          message: `📝 New task assigned: "${title}" in project "${projectName}"`,
+          taskId: newTask._id,
+          projectId: projectId,
+          type: "task_assigned",
+          createdAt: new Date(),
+        });
+      });
+      toast.success('Task created successfully!');
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+      setEstimatedHours('');
+      setDueDate('');
+      setAssigneeIds([]);
+      setMemberIds([]);
+      setChecklist([]);
+      onTaskCreated?.();
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message || 'Failed to create task');
+    } finally {
+      setSubmitting(false);
+    }
   }
-}
 
-
+  // --- UI Section ---
   return (
-    <div className="max-w-lg mx-auto p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg">
+    <div className="max-w-lg mx-auto p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg">
       <h2 className="text-2xl font-semibold mb-6 text-center text-gray-900 dark:text-white">Create Task</h2>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {error && <div className="text-red-600">{error}</div>}
-
-        {/* Title */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-          <input
-            type="text"
+        {/* Title & Description */}
+        <div>
+          <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+          <input type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Task title"
             required
-            className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white"
-          />
+            className="w-full px-3 py-2 rounded border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white" />
         </div>
-
-        {/* Description */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+        <div>
+          <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
             placeholder="Task description"
-            rows={4}
+            rows={3}
             required
-            className="block w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 rounded border bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-900 dark:text-white"
           />
         </div>
-
         {/* Priority & Hours */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
             <select
               value={priority}
               onChange={e => setPriority(e.target.value)}
@@ -256,7 +207,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Estimated Hours</label>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Estimated Hours</label>
             <input
               type="number"
               value={estimatedHours}
@@ -267,44 +218,90 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
             />
           </div>
         </div>
-
         {/* Due Date */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+        <div>
+          <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Due Date</label>
           <input
             type="date"
             value={dueDate}
             onChange={e => setDueDate(e.target.value)}
-            className="block w-full px-3 py-2 rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
           />
         </div>
 
-        {/* Assign Task To */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Task To</label>
-          <select
-            multiple
-            value={assigneeIds}
-            onChange={e => setAssigneeIds(Array.from(e.target.selectedOptions, o => o.value))}
-            required
-            className="block w-full px-3 py-2 rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white min-h-[8rem]"
+        {/* --- Modern Assignees Selection --- */}
+       <div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assign Members</label>
+  <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800 max-h-64 overflow-y-auto flex flex-col gap-3">
+    {participants.length === 0 ? (
+      <p className="text-gray-500 dark:text-gray-400 text-sm">No team members available</p>
+    ) : (
+      participants.map(participant => {
+        const participantId = participant.userId || participant._id;
+        const isSelected = memberIds.includes(participantId);
+        return (
+          <label
+            key={participantId}
+            className={`flex items-center p-2 rounded-lg border transition-all duration-200 cursor-pointer
+              ${isSelected ? 'bg-blue-50 dark:bg-blue-900 border-blue-400 dark:border-blue-600' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-gray-600'}
+            `}
           >
-            {participants.length === 0 ? (
-              <option disabled>No participants in project</option>
-            ) : (
-              participants.map(p => (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => handleMemberCheckboxChange(participantId)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 mr-3"
+            />
+            <div className="flex items-center min-w-0 space-x-2">
+              {participant.avatarUrl && (
+                <img src={participant.avatarUrl} alt="avatar" className="w-6 h-6 rounded-full" />
+              )}
+              <span className={`text-sm font-medium truncate ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100'}`}>
+                {participant.username || participant.name || participant.email}
+              </span>
+              <span className={`text-xs px-2 py-1 rounded-full ml-2 flex-shrink-0 
+                ${['admin', 'manager', 'project-manager'].includes((participant.roleInProject || '').toLowerCase())
+                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+                  : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300'}`}>
+                {participant.roleInProject}
+              </span>
+            </div>
+          </label>
+        );
+      })
+    )}
+  </div>
+  {memberIds.length > 0 && (
+    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+      Selected: {memberIds.length} member{memberIds.length !== 1 ? 's' : ''}
+    </div>
+  )}
+</div>
+
+
+        {/* Assign Task To (participant multi-select, fallback if needed) */}
+        {/* {participants.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Task To</label>
+            <select
+              multiple
+              value={assigneeIds}
+              onChange={e => setAssigneeIds(Array.from(e.target.selectedOptions, o => o.value))}
+              className="w-full px-3 py-2 rounded border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white min-h-[8rem]"
+            >
+              {participants.map(p => (
                 <option key={p.userId || p._id} value={p.userId || p._id}>
                   {p.username || p.name || p.email} ({p.roleInProject})
                 </option>
-              ))
-            )}
-          </select>
-          <p className="text-xs italic text-gray-500 dark:text-gray-400">Hold Ctrl/Cmd to select multiple</p>
-        </div>
+              ))}
+            </select>
+            <p className="text-xs italic text-gray-500 dark:text-gray-400">Hold Ctrl/Cmd to select multiple</p>
+          </div>
+        )} */}
 
-        {/* Checklist */}
-        <div className="space-y-2 mb-6">
-          <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300">Sub Task</h3>
+        {/* Checklist Section */}
+        <div>
+          <h3 className="font-semibold text-lg text-gray-700 dark:text-gray-300 mb-2">Sub Task</h3>
           <div className="flex gap-2 mb-3">
             <input
               type="text"
@@ -338,7 +335,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
             ))}
           </ul>
         </div>
-
+        {/* Submit */}
         <button
           type="submit"
           disabled={submitting}

@@ -128,7 +128,7 @@ export async function GET(req) {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Token decoded successfully:", decoded.email);
+      // console.log("Token decoded successfully:", decoded.email);
     } catch (error) {
       console.error("Token verification failed:", error);
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });

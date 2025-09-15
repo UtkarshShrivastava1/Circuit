@@ -53,7 +53,7 @@ const checkAuthAndLoadProjects = async () => {
 
     const data = await res.json();
     setProjects(data);
-    console.log('data : ' , data)
+    // console.log('data : ' , data)
   } catch (err) {
     console.error('Error fetching projects:', err);
     if (err.message === 'Invalid token') {
