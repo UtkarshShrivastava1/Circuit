@@ -74,13 +74,11 @@ function ManageAllTasks() {
 
         const tasksData = await resTasks.json();
         setTasks(tasksData.slice().reverse());
-        console.log('task data : ',tasksData)
         setError('');
 
         // Extract tickets from all tasks
         const allTickets = tasksData.flatMap(task => task.tickets || []);
         setTickets(allTickets.slice().reverse());
-        console.log('Fetched tickets:', allTickets);
       } catch (err) {
         setError('Failed to load data');
       } finally {
@@ -194,11 +192,19 @@ function ManageAllTasks() {
                 {tasks.map(task => (
                   <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="p-3">{task.title}</td>
+                    
+                    {/* 🔹 FIXED PROJECT NAME DISPLAY */}
+                    <td className="p-3">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                        📁 {getProjectName(task)}
+                      </span>
+                    </td>
+                    
                     {/* <td className="p-3">{task.manager?.email || '-'}</td> */}
                     <td className="p-3">
                       {(task.assignees || [])
                         .filter(Boolean)
-                        .map(a => a.user?.name||   a.user?.email || '')
+                        .map(a => a.user?.name|| a.user?.email || '')
                         .join(', ') || '-'}
                     </td>
                     <td className="p-3">
