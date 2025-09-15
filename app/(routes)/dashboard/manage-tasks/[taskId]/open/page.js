@@ -42,7 +42,7 @@ export default function TaskDetailPage() {
     try {
       const res = await fetch(`/api/tasks/${pendingDeleteTaskId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization:  `Bearer ${token}` },
       });
       if (!res.ok) {
         const data = await res.json();
