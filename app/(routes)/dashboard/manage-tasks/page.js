@@ -9,11 +9,9 @@ import { Loader2, X } from 'lucide-react';
 function ManageAllTasks() {
   const router = useRouter();
   const params = useParams();
-  const {taskId} = params; // Ensure this exists
-  // console.log('Task ID from params:', taskId);
+  const { taskId } = params;
   const searchParams = useSearchParams();
   const taskIdfromserchaParam = searchParams.get('taskId');
-//  console.log('Task ID from search params:', taskIdfromserchaParam);
   const projectName = searchParams.get('projectName') || '';
 
   const [activeTab, setActiveTab] = useState('tasks');
@@ -29,7 +27,8 @@ function ManageAllTasks() {
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [deletingTicket, setDeletingTicket] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-//user checking
+
+  // User checking
   useEffect(() => {
     async function fetchUserRole() {
       const token = localStorage.getItem('token');
@@ -48,7 +47,7 @@ function ManageAllTasks() {
     fetchUserRole();
   }, [router]);
 
-  //task data fetchnig
+  // Task data fetching
   useEffect(() => {
     async function fetchData() {
       const token = localStorage.getItem('token');
@@ -75,7 +74,7 @@ function ManageAllTasks() {
 
         const tasksData = await resTasks.json();
         setTasks(tasksData);
-        console.log('task data : ',tasksData)
+        console.log('task data : ', tasksData);
         setError('');
 
         // Extract tickets from all tasks
@@ -145,7 +144,14 @@ function ManageAllTasks() {
     }
   }
 
-  
+  // Helper function to get project name from task
+  const getProjectName = (task) => {
+    // Try multiple possible paths for project name
+    return task.projectName || 
+           task.projectId?.projectName || 
+           task.projectId?.name || 
+           'Unknown Project';
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 bg-white dark:bg-slate-950">
@@ -177,8 +183,9 @@ function ManageAllTasks() {
               <thead className="bg-gray-100 dark:bg-slate-800">
                 <tr className="text-left text-sm font-medium text-gray-700 dark:text-slate-300">
                   <th className="p-3">Title</th>
-                  <th className="p-3">Manager</th>
-                  <th className="p-3">Members</th>
+                  <th className="p-3">Project</th>
+                  {/* <th className="p-3">Manager</th> */}
+                  <th className="p-3">Assiged</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Actions</th>
                 </tr>
@@ -187,11 +194,19 @@ function ManageAllTasks() {
                 {tasks.map(task => (
                   <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="p-3">{task.title}</td>
-                    <td className="p-3">{task.manager?.email || '-'}</td>
+                    
+                    {/* 🔹 FIXED PROJECT NAME DISPLAY */}
+                    <td className="p-3">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                        📁 {getProjectName(task)}
+                      </span>
+                    </td>
+                    
+                    {/* <td className="p-3">{task.manager?.email || '-'}</td> */}
                     <td className="p-3">
                       {(task.assignees || [])
                         .filter(Boolean)
-                        .map(a => a.user?.email || a.user?.name || '')
+                        .map(a => a.user?.name|| a.user?.email || '')
                         .join(', ') || '-'}
                     </td>
                     <td className="p-3">
@@ -210,7 +225,7 @@ function ManageAllTasks() {
         </>
       )}
 
-      {/* Tickets List */}
+      {/* Tickets List - UNCHANGED */}
       {activeTab === 'tickets' && (
         <>
           {ticketsLoading ? (
