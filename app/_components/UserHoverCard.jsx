@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Loading from "../(routes)/dashboard/_components/Loading";
+import Image from "next/image";
 
 export default function UserHoverCard({ email }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -32,25 +32,29 @@ export default function UserHoverCard({ email }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Avatar */}
-      <img
-        src={user?.profileImgUrl
- || "/user.png"}
-        alt={user?.name || email}
-        className="w-10 h-10 rounded-full border cursor-pointer"
-      />
+<Image
+  src={user?.profileImgUrl || "/user.png"}
+  alt={user?.name || email}
+  width={40}
+  height={40}
+  className="w-10 h-10 rounded-full border cursor-pointer"
+  unoptimized={user?.profileImgUrl?.startsWith("http")}
+/>
+    
 
       {/* Hover Card */}
       {isHovered && (
         <div className="absolute left-0 mt-2 w-56 bg-white shadow-lg rounded-lg p-4 border z-50">
           {loading ? (
-            <p className="text-xs text-gray-500"><Loading message="Loading"/></p>
+            <p className="text-xs text-gray-500">Loading...</p>
           ) : user ? (
             <>
               <div className="flex items-center space-x-3">
-                <img
+                <Image
                   src={user.profileImgUrl || "/user.png"}
                   alt={user.name || email}
+                  width={40}
+                  height={40}
                   className="w-12 h-12 rounded-full border"
                 />
                 <div>
