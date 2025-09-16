@@ -1,47 +1,47 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { Button } from '@/components/ui/button';
-import { Loader2, X } from 'lucide-react';
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Button } from "@/components/ui/button";
+import { Loader2, X } from "lucide-react";
 
 function ManageAllTasks() {
   const router = useRouter();
   const params = useParams();
   const { taskId } = params;
   const searchParams = useSearchParams();
-  const taskIdfromserchaParam = searchParams.get('taskId');
-  const projectName = searchParams.get('projectName') || '';
+  const taskIdfromserchaParam = searchParams.get("taskId");
+  const projectName = searchParams.get("projectName") || "";
 
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState("tasks");
   const [tasks, setTasks] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [ticketsLoading, setTicketsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [userRole, setUserRole] = useState('');
+  const [error, setError] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState(null);
   const [deletingTicket, setDeletingTicket] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [deleteError, setDeleteError] = useState("");
 
   // User checking
   useEffect(() => {
     async function fetchUserRole() {
-      const token = localStorage.getItem('token');
-      if (!token) return router.push('/login');
+      const token = localStorage.getItem("token");
+      if (!token) return router.push("/login");
 
-      const res = await fetch('/api/auth/session', {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch("/api/auth/session", {
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setUserRole(data.role);
       } else {
-        router.push('/login');
+        router.push("/login");
       }
     }
     fetchUserRole();
@@ -50,37 +50,37 @@ function ManageAllTasks() {
   // Task data fetching
   useEffect(() => {
     async function fetchData() {
-      const token = localStorage.getItem('token');
-      if (!token) return router.push('/login');
+      const token = localStorage.getItem("token");
+      if (!token) return router.push("/login");
 
       try {
         setTasksLoading(true);
         setTicketsLoading(true);
 
         // Fetch tasks, with optional project filter
-        let apiUrl = '/api/tasks';
+        let apiUrl = "/api/tasks";
         if (projectName.trim()) {
           apiUrl += `?projectId=${encodeURIComponent(projectName)}`;
         }
 
         const resTasks = await fetch(apiUrl, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!resTasks.ok) {
-          setError('Failed to load tasks');
+          setError("Failed to load tasks");
           return;
         }
 
         const tasksData = await resTasks.json();
         setTasks(tasksData.slice().reverse());
-        setError('');
+        setError("");
 
         // Extract tickets from all tasks
-        const allTickets = tasksData.flatMap(task => task.tickets || []);
+        const allTickets = tasksData.flatMap((task) => task.tickets || []);
         setTickets(allTickets.slice().reverse());
       } catch (err) {
-        setError('Failed to load data');
+        setError("Failed to load data");
       } finally {
         setTasksLoading(false);
         setTicketsLoading(false);
@@ -101,41 +101,43 @@ function ManageAllTasks() {
   function handleDeleteCancel() {
     setShowDeleteModal(false);
     setTicketToDelete(null);
-    setDeleteError('');
+    setDeleteError("");
   }
 
   // Confirm deletion and call API
   async function handleDeleteConfirm() {
     if (!ticketToDelete) return;
     setDeletingTicket(true);
-    setDeleteError('');
+    setDeleteError("");
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        router.push('/login');
+        router.push("/login");
         return;
       }
 
       // NOTE: Use taskId and ticketToDelete here
       const res = await fetch(`/api/ticket/${ticketToDelete}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setDeleteError(data?.error || 'Failed to delete ticket');
+        setDeleteError(data?.error || "Failed to delete ticket");
         setDeletingTicket(false);
         return;
       }
 
-      toast.success('Ticket deleted successfully');
-      setTickets(prev => prev.filter(t => t._id !== ticketToDelete && t.id !== ticketToDelete));
+      toast.success("Ticket deleted successfully");
+      setTickets((prev) =>
+        prev.filter((t) => t._id !== ticketToDelete && t.id !== ticketToDelete)
+      );
       setShowDeleteModal(false);
       setTicketToDelete(null);
     } catch (err) {
-      setDeleteError('Network error deleting ticket');
+      setDeleteError("Network error deleting ticket");
       toast.error(err.message);
     } finally {
       setDeletingTicket(false);
@@ -145,30 +147,48 @@ function ManageAllTasks() {
   // Helper function to get project name from task
   const getProjectName = (task) => {
     // Try multiple possible paths for project name
-    return task.projectName || 
-           task.projectId?.projectName || 
-           task.projectId?.name || 
-           'Unknown Project';
+    return (
+      task.projectName ||
+      task.projectId?.projectName ||
+      task.projectId?.name ||
+      "Unknown Project"
+    );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 bg-white dark:bg-slate-950">
+    <div className="max-w-7xl overflow mx-auto px-4 py-6 bg-white dark:bg-slate-950">
       {/* Tabs */}
       <div className="flex border-b border-gray-300 dark:border-slate-700 mb-6">
         <button
           className={`px-4 pb-2 font-semibold text-sm sm:text-base transition-colors ${
-            activeTab === 'tasks' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-slate-400'
-          }`} onClick={() => switchTab('tasks')}>Tasks</button>
+            activeTab === "tasks"
+              ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400"
+              : "text-gray-500 dark:text-slate-400"
+          }`}
+          onClick={() => switchTab("tasks")}
+        >
+          Tasks
+        </button>
         <button
           className={`px-4 pb-2 font-semibold text-sm sm:text-base transition-colors ${
-            activeTab === 'tickets' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-slate-400'
-          }`} onClick={() => switchTab('tickets')}>Tickets</button>
+            activeTab === "tickets"
+              ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400"
+              : "text-gray-500 dark:text-slate-400"
+          }`}
+          onClick={() => switchTab("tickets")}
+        >
+          Tickets
+        </button>
       </div>
 
-      {error && <div className="mb-6 p-4 rounded bg-red-100 dark:bg-red-900/20 text-red-700">{error}</div>}
+      {error && (
+        <div className="mb-6 p-4 rounded bg-red-100 dark:bg-red-900/20 text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Tasks Table */}
-      {activeTab === 'tasks' && (
+      {activeTab === "tasks" && (
         <>
           {tasksLoading ? (
             <div className="flex items-center justify-center h-40">
@@ -189,31 +209,52 @@ function ManageAllTasks() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300 dark:divide-slate-700">
-                {tasks.map(task => (
-                  <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                {tasks.map((task) => (
+                  <tr
+                    key={task._id}
+                    className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+                  >
                     <td className="p-3">{task.title}</td>
-                    
+
                     {/* 🔹 FIXED PROJECT NAME DISPLAY */}
                     <td className="p-3">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
                         📁 {getProjectName(task)}
                       </span>
                     </td>
-                    
+
                     {/* <td className="p-3">{task.manager?.email || '-'}</td> */}
                     <td className="p-3">
                       {(task.assignees || [])
                         .filter(Boolean)
-                        .map(a => a.user?.name|| a.user?.email || '')
-                        .join(', ') || '-'}
+                        .map((a) => a.user?.name || a.user?.email || "")
+                        .join(", ") || "-"}
                     </td>
                     <td className="p-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        task.status === 'completed' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300'
-                      }`}>{task.status ? task.status.charAt(0).toUpperCase() + task.status.slice(1) : 'Pending'}</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          task.status === "completed"
+                            ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300"
+                            : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300"
+                        }`}
+                      >
+                        {task.status
+                          ? task.status.charAt(0).toUpperCase() +
+                            task.status.slice(1)
+                          : "Pending"}
+                      </span>
                     </td>
                     <td className="p-3">
-                      <Button size="sm" onClick={() => router.push(`/dashboard/manage-tasks/${task._id}/open`)}>Open</Button>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/manage-tasks/${task._id}/open`
+                          )
+                        }
+                      >
+                        Open
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -224,30 +265,64 @@ function ManageAllTasks() {
       )}
 
       {/* Tickets List - UNCHANGED */}
-      {activeTab === 'tickets' && (
+      {activeTab === "tickets" && (
         <>
           {ticketsLoading ? (
             <div className="flex items-center justify-center h-40">
               <Loader2 className="animate-spin h-8 w-8 text-gray-500 dark:text-gray-400" />
             </div>
           ) : tickets.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">No tickets found.</div>
+            <div className="p-4 text-center text-gray-500">
+              No tickets found.
+            </div>
           ) : (
             <ul className="space-y-3">
-              {tickets.map(ticket => (
-                <li key={ticket._id} className="p-4 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                  <h3 className="font-semibold text-lg mb-1">{ticket.issueTitle}</h3>
+              {tickets.map((ticket) => (
+                <li
+                  key={ticket._id}
+                  className="p-4 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <h3 className="font-semibold text-lg mb-1">
+                    {ticket.issueTitle}
+                  </h3>
                   <p className="text-sm mb-2">
-                    Status: <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      ticket.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
-                    }`}>{ticket.status ? ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1) : 'Open'}</span>
+                    Status:{" "}
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        ticket.status === "pending"
+                          ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300"
+                          : "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300"
+                      }`}
+                    >
+                      {ticket.status
+                        ? ticket.status.charAt(0).toUpperCase() +
+                          ticket.status.slice(1)
+                        : "Open"}
+                    </span>
                   </p>
-                  <p className="mb-2">Description: {ticket.description || '-'}</p>
-                  <p className="mb-1">Priority: {ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : '-'}</p>
-                  <p>Assigned to: {ticket.assignedTo ? ticket.assignedTo.name || ticket.assignedTo.username || ticket.assignedTo.email : 'Unassigned'}</p>
-                  <p>Tag: {ticket.tag || '-'}</p>
+                  <p className="mb-2">
+                    Description: {ticket.description || "-"}
+                  </p>
+                  <p className="mb-1">
+                    Priority:{" "}
+                    {ticket.priority
+                      ? ticket.priority.charAt(0).toUpperCase() +
+                        ticket.priority.slice(1)
+                      : "-"}
+                  </p>
+                  <p>
+                    Assigned to:{" "}
+                    {ticket.assignedTo
+                      ? ticket.assignedTo.name ||
+                        ticket.assignedTo.username ||
+                        ticket.assignedTo.email
+                      : "Unassigned"}
+                  </p>
+                  <p>Tag: {ticket.tag || "-"}</p>
                   <div className="text-sm bg-red-600 text-white dark:text-gray-300 mt-3 px-3 py-1 rounded inline-block">
-                    <button onClick={() => confirmDeleteTicket(ticket._id)}>Delete</button>
+                    <button onClick={() => confirmDeleteTicket(ticket._id)}>
+                      Delete
+                    </button>
                   </div>
                 </li>
               ))}
@@ -261,24 +336,62 @@ function ManageAllTasks() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-xl p-6 max-w-md w-full shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-red-600">Delete Ticket</h3>
-              <button onClick={handleDeleteCancel} aria-label="Close" className="text-gray-100 hover:text-gray-900 p-1 rounded-full transition-colors">
+              <h3 className="text-xl font-semibold text-red-600">
+                Delete Ticket
+              </h3>
+              <button
+                onClick={handleDeleteCancel}
+                aria-label="Close"
+                className="text-gray-100 hover:text-gray-900 p-1 rounded-full transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="mb-6 text-gray-700 dark:text-gray-300">Are you sure you want to delete this ticket? This action cannot be undone.</p>
-            {deleteError && <p className="mb-4 text-red-600 dark:text-red-400">{deleteError}</p>}
+            <p className="mb-6 text-gray-700 dark:text-gray-300">
+              Are you sure you want to delete this ticket? This action cannot be
+              undone.
+            </p>
+            {deleteError && (
+              <p className="mb-4 text-red-600 dark:text-red-400">
+                {deleteError}
+              </p>
+            )}
             <div className="flex justify-end space-x-3">
-              <button onClick={handleDeleteCancel} className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">Cancel</button>
-              <button onClick={handleDeleteConfirm} disabled={deletingTicket} className={`px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 ${deletingTicket ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                {deletingTicket ? <Loader2 className="inline mr-2 h-5 w-5 animate-spin" /> : 'Confirm Delete'}
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deletingTicket}
+                className={`px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 ${
+                  deletingTicket ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+              >
+                {deletingTicket ? (
+                  <Loader2 className="inline mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  "Confirm Delete"
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 }
