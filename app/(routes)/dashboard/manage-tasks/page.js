@@ -154,7 +154,7 @@ function ManageAllTasks() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 bg-white dark:bg-slate-950">
+    <div className="max-w-7xl mx-auto overflow-auto px-4 py-6 bg-white dark:bg-slate-950">
       {/* Tabs */}
       <div className="flex border-b border-gray-300 dark:border-slate-700 mb-6">
         <button

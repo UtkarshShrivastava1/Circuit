@@ -99,7 +99,7 @@ export async function POST(req) {
 
     // ----------------- Parse & Validate Body -----------------
     const body = await req.json();
-    console.log("Task body name : ", body.projectName );
+    console.log("Task body name : ", body);
 
     const requiredFields = ["title", "description", "projectId", "assignees"];
     for (const field of requiredFields) {
