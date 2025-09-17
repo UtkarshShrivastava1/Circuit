@@ -49,7 +49,7 @@ useEffect(() => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="loader"><Loading message="Please wait, fetching data..." />
+        <div className="loader"><Loading message="Loading data..." />
 </div>
        
       </div>
@@ -64,6 +64,7 @@ useEffect(() => {
       <div className="md:ml-64">
         <DashboardHeader />
         <div className="p-2 md:p-5">{children}</div>
+     
       </div>
     </div>
   );

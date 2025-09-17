@@ -169,7 +169,7 @@ export async function GET(req) {
         throw new Error("JWT_SECRET is not defined in env");
       }
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Token decoded:", decoded.email);
+      // console.log("Token decoded successfully:", decoded.email);
     } catch (error) {
       console.error("Token verification failed:", error.message);
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });

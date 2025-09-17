@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import UserHoverCard from "./UserHoverCard";
+import { ModeToggle } from "@/app/_components/DarkModeBtn";
 import axios from "axios";
 
 export default function Header() {
@@ -47,6 +48,7 @@ export default function Header() {
       </div>
 
       <div className="flex gap-3 items-center">
+        <ModeToggle />
         <Link href={"/dashboard"}>
           {userData && (
             <button className="rounded-full bg-transparent border border-blue-800 text-blue-800 px-4 py-2 hover:bg-blue-100">

@@ -3,11 +3,12 @@ import mongoose from "mongoose"; // ✅ ADD THIS LINE
 import dbConnect from "@/lib/mongodb";
 import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate";
-import { checkRole } from "@/lib/middleware/checkRole";
+// import { checkRole } from "@/lib/middleware/checkRole";
 import { verifyAuth } from "@/lib/auth";
-import { sendNotification } from "@/lib/notifications";
-import User from "@/app/models/User";
-
+// import { sendNotification } from "@/lib/notifications";
+// import User from "@/app/models/User";
+// import { getIO } from "@/lib/socket"; 
+// import { sendNotification } from "@/lib/notifications";
 // ... rest of your code
 
 
@@ -58,6 +59,7 @@ export async function GET(req) {
     const tasks = await Task.find(query)
       .populate("createdBy", "name email")  // Only populate basic user fields
       .populate("assignees.user", "name email") // Populate assignee user info
+      .populate("projectId", "name projectName")
       .populate('tickets.assignedTo','name username email')
       .populate('subtasks')
       .lean() // For better performance
@@ -76,89 +78,7 @@ export async function GET(req) {
   }
 }
 
-// export async function POST(req) {
-//   try {
-//     // ✅ Authenticate user
-//     const authHeader = req.headers.get("authorization");
-//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-//       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-//     }
 
-//     const token = authHeader.split(" ")[1];
-//     const user = await verifyAuth(token);
-//     if (!user) {
-//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-//     }
-
-//     await dbConnect();
-
-//     // ✅ Parse body
-//     const body = await req.json();
-//     console.log("body : " , body)
-//     const requiredFields = ["title", "description", "projectId", "assignees"];
-//     for (const field of requiredFields) {
-//       if (!body[field] || (field === "assignees" && (!Array.isArray(body.assignees) || body.assignees.length === 0))) {
-//         return NextResponse.json({ error: `Missing or invalid field: ${field}` }, { status: 400 });
-//       }
-//     }
-
-//     const checklist = Array.isArray(body.checklist)
-//       ? body.checklist.map((item) => ({
-//           item: item.item || "",
-//           isCompleted: !!item.isCompleted,
-//         }))
-//       : [];
-
-//     // ✅ Create task
-//     const task = await Task.create({
-//       title: body.title,
-//       description: body.description,
-//       projectId: new mongoose.Types.ObjectId(body.projectId),
-//       createdBy: new mongoose.Types.ObjectId(user._id),
-//       assignedBy: new mongoose.Types.ObjectId(user._id),
-//       assignees: body.assignees.map((a) => ({
-//         user: new mongoose.Types.ObjectId(a.user),
-//         state: a.state || "assigned",
-//       })),
-//       estimatedHours: body.estimatedHours ? Number(body.estimatedHours) : 0,
-//       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
-//       priority: body.priority || "medium",
-//       checklist,
-//       status: "pending",
-//       progress: 0,
-//     });
-
-//    // ✅ Notify admins (or assignees) about the new task
-// const admins = await User.find({ role: "admin" }).select("_id");
-
-// // Debug log
-// console.log("admins:",admins, admins.map((a) => a._id.toString()));
-// console.log("User :" , user.id);
-// await Promise.all(
-//   admins.map((admin) =>
-//     sendNotification({
-//       recipientId: admin._id.toString(),
-//       senderId: user.id.toString(),
-//       type: "task",
-//       message: `${user.name || user.email} created a new task: ${body.title}`,
-//       link: `/dashboard/tasks/${task._id}`,
-//     })
-//   )
-// );
-
-
-//     return NextResponse.json(task, { status: 201 });
-//   } catch (error) {
-//     console.error("Task creation error:", error);
-//     return NextResponse.json(
-//       {
-//         error: "Failed to create task",
-//         details: process.env.NODE_ENV === "development" ? error.message : undefined,
-//       },
-//       { status: 500 }
-//     );
-//   }
-// }
 
 export async function POST(req) {
   try {
@@ -179,6 +99,7 @@ export async function POST(req) {
 
     // ----------------- Parse & Validate Body -----------------
     const body = await req.json();
+    console.log("Task body name : ", body.projectName );
 
     const requiredFields = ["title", "description", "projectId", "assignees"];
     for (const field of requiredFields) {
@@ -200,6 +121,7 @@ export async function POST(req) {
       title: body.title,
       description: body.description,
       projectId: new mongoose.Types.ObjectId(body.projectId),
+      projectName:body.projectName,
       createdBy: new mongoose.Types.ObjectId(user._id),
       assignedBy: new mongoose.Types.ObjectId(user._id),
       assignees: body.assignees.map(a => ({

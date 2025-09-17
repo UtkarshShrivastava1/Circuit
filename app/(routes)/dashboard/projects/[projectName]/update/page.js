@@ -73,7 +73,7 @@ const UpdateProject = () => {
           endDate: projectData.endDate ? projectData.endDate.split("T")[0] : "",
         });
         setParticipants(projectData.participants || []);
-        console.log('projectData.participants',projectData.participants)
+        // console.log('projectData.participants',projectData.participants)
 
 
         // console.log('participants : ' , projectData.participants);
