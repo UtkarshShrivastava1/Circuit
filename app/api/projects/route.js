@@ -108,12 +108,51 @@ export async function POST(req) {
   }
 }
 
+// export async function GET(req) {
+//   await dbConnect();
+//   try {
+//     // Extract token from Authorization header
+//     const authHeader = req.headers.get("authorization");
+//     // console.log("Auth Header received:", authHeader);
+
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return NextResponse.json(
+//         { message: "No token provided" },
+//         { status: 401 }
+//       );
+//     }
+//     const token = authHeader.split(" ")[1];
+//     console.log("Token extracted:", token ? "Present" : "Missing");
+
+//     // Verify token
+//     let decoded;
+//     try {
+//       decoded = jwt.verify(token, process.env.JWT_SECRET);
+//       console.log("Token decoded successfully:", decoded.email);
+//     } catch (error) {
+//       console.error("Token verification failed:", error);
+//       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
+//     }
+// const projects = await Project.find({}) // Remove the filter object
+//       .populate('manager', 'name email') // Add manager population for better display
+//       .populate('participants.userId', 'name email') // Add participant details
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     console.log(`Found ${projects.length} projects for user ${decoded.email}`);
+//     return NextResponse.json(projects);
+//   } catch (error) {
+//     console.error("Projects API Error:", error);
+//     return NextResponse.json(
+//       { error: "Failed to fetch projects" },
+//       { status: 500 }
+//     );
+//   }
+// }
 export async function GET(req) {
   await dbConnect();
   try {
-    // Extract token from Authorization header
     const authHeader = req.headers.get("authorization");
-    // console.log("Auth Header received:", authHeader);
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -121,30 +160,34 @@ export async function GET(req) {
         { status: 401 }
       );
     }
-    const token = authHeader.split(" ")[1];
-    console.log("Token extracted:", token ? "Present" : "Missing");
 
-    // Verify token
+    const token = authHeader.split(" ")[1];
+
     let decoded;
     try {
+      if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is not defined in env");
+      }
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Token decoded successfully:", decoded.email);
+      console.log("Token decoded:", decoded.email);
     } catch (error) {
-      console.error("Token verification failed:", error);
+      console.error("Token verification failed:", error.message);
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
-const projects = await Project.find({}) // Remove the filter object
-      .populate('manager', 'name email') // Add manager population for better display
-      .populate('participants.userId', 'name email') // Add participant details
+
+    // ✅ Adjust population paths to match your schema
+    const projects = await Project.find({})
+      .populate("manager", "name email")
+      .populate("participants.userId", "name email")
       .sort({ createdAt: -1 })
       .lean();
 
     console.log(`Found ${projects.length} projects for user ${decoded.email}`);
     return NextResponse.json(projects);
   } catch (error) {
-    console.error("Projects API Error:", error);
+    console.error("Projects API Error:", error.message, error.stack);
     return NextResponse.json(
-      { error: "Failed to fetch projects" },
+      { error: "Failed to fetch projects", details: error.message },
       { status: 500 }
     );
   }

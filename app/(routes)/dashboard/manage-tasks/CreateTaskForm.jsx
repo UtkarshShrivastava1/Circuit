@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { io } from "socket.io-client";
 
 export default function CreateTaskForm({ projectId, projectName, currentUser, onTaskCreated, socket}) {
   const [title, setTitle] = useState('');
@@ -50,85 +51,16 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
   }
 
   function toggleChecklistItem(index) {
-    const newChecklist = [...checklist];
+  setChecklist(prev => {
+    if (!prev[index]) return prev; // safeguard, do nothing if undefined
+    const newChecklist = [...prev];
     newChecklist[index].isCompleted = !newChecklist[index].isCompleted;
-    setChecklist(newChecklist);
-  }
+    return newChecklist;
+  });
+}
 
-  // async function handleSubmit(e) {
-  //   e.preventDefault();
-  //   setError('');
-  //   if (!title.trim() || !description.trim()) {
-  //     setError('Please fill in both title and description.');
-  //     return;
-  //   }
-  //   if (assigneeIds.length === 0) {
-  //     setError('Please select at least one assignee.');
-  //     return;
-  //   }
 
-  //   const token = localStorage.getItem('token');
-  //   if (!token) return router.push('/login');
-
-  //   setSubmitting(true);
-  //   try {
-  //     const payload = {
-  //       title: title.trim(),
-  //       description: description.trim(),
-  //       projectId,
-  //       projectName,
-  //       userId: currentUser._id,
-  //       assignees: assigneeIds.map(id => ({ user: id, state: 'assigned' })),
-  //       priority,
-  //       estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
-  //       dueDate: dueDate ? new Date(dueDate) : undefined,
-  //       checklist: checklist.map(item => ({
-  //         item: item.item,
-  //         isCompleted: item.isCompleted,
-  //         // completedBy and completedAt will be set later on update
-  //       })),
-  //     };
-
-  //     console.log("task payLoad :",payload)
-
-  //     const res = await fetch('/api/tasks', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify(payload),
-  //     });
-
-  //     if (!res.ok) throw new Error('Failed to create task');
-
-  //      // --- Real-time notifications to assignees ---
-  //     assigneeIds.forEach(userId => {
-  //       socket.emit('sendNotification', {
-  //         senderId: currentUser._id,
-  //         receiverId: userId,
-  //         message: `New task assigned: "${title}" in project ${projectName}`,
-  //         taskId: newTask._id,
-  //       });
-  //     });
-
-  //     toast.success('Task created successfully!');
-  //     setTitle('');
-  //     setDescription('');
-  //     setPriority('medium');
-  //     setEstimatedHours('');
-  //     setDueDate('');
-  //     setAssigneeIds([]);
-  //     setChecklist([]);
-  //     onTaskCreated?.();
-  //   } catch (err) {
-  //     console.error(err);
-  //     setError(err.message);
-  //     toast.error(err.message || 'Failed to create task');
-  //   } finally {
-  //     setSubmitting(false);
-  //   }
-  // }
+ 
 
   async function handleSubmit(e) {
   e.preventDefault();
@@ -144,6 +76,14 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
 
   const token = localStorage.getItem('token');
   if (!token) return router.push('/login');
+
+
+      const SOCKET_URL =
+      typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
+        ? process.env.NEXT_PUBLIC_SOCKET_URL
+        : window?.location?.origin || "";
+
+    const socket = io(SOCKET_URL);
 
   setSubmitting(true);
   try {
@@ -163,7 +103,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
       })),
     };
 
-    console.log("task payload :", payload);
+    // console.log("task payload :", payload);
 
     const res = await fetch('/api/tasks', {
       method: 'POST',
@@ -177,16 +117,18 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
     if (!res.ok) throw new Error('Failed to create task');
 
     const newTask = await res.json();
+    console.log(assigneeIds.map(id => ({ user: id, state: 'assigned' })))
 
     // --- Real-time notifications to assignees ---
     assigneeIds.forEach(userId => {
-      socket.emit('sendNotification', {
+      socket.emit('taskCreated', {
         senderId: currentUser._id,
         receiverId: userId,
         message: `New task assigned: "${title}" in project ${projectName}`,
         taskId: newTask._id,
       });
     });
+    // console.log("New Task :",newTask);
 
     toast.success('Task created successfully!');
     setTitle('');
@@ -318,7 +260,7 @@ export default function CreateTaskForm({ projectId, projectName, currentUser, on
             </button>
           </div>
           <ul className="space-y-1">
-            {checklist.map((item, idx) => (
+            {Array.isArray(checklist) && checklist.length > 0 && checklist.map((item, idx) => (
               <li key={idx} className="flex items-center gap-2">
                 <input
                   type="checkbox"

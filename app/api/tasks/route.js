@@ -215,27 +215,27 @@ export async function POST(req) {
     });
 
   // ----------------- Notify Admins and Assignees -----------------
-const admins = await User.find({ role: "admin" }).select("_id");
+// const admins = await User.find({ role: "admin" }).select("_id");
 
-// Correct logging
-console.log("admins:", admins.map(a => a._id.toString()));
+// // Correct logging
+// console.log("admins:", admins.map(a => a._id.toString()));
 
-const recipients = [
-  ...admins.map(a => a._id.toString()), // map each admin _id to string
-  ...body.assignees.map(a => a.user)   // keep assignees as-is
-];
+// const recipients = [
+//   ...admins.map(a => a._id.toString()), // map each admin _id to string
+//   ...body.assignees.map(a => a.user)   // keep assignees as-is
+// ];
 
-await Promise.all(
-  recipients.map(recipientId =>
-    sendNotification({
-      recipientId,
-      senderId: user.id.toString(),
-      type: "task",
-      message: `${user.name || user.email} created a new task: ${body.title}`,
-      link: `/dashboard/tasks/${task._id}`,
-    }).catch(err => console.error("Notification error:", err))
-  )
-);
+// await Promise.all(
+//   recipients.map(recipientId =>
+//     sendNotification({
+//       recipientId,
+//       senderId: user.id.toString(),
+//       type: "task",
+//       message: `${user.name || user.email} created a new task: ${body.title}`,
+//       link: `/dashboard/tasks/${task._id}`,
+//     }).catch(err => console.error("Notification error:", err))
+//   )
+// );
 
 
     return NextResponse.json(task, { status: 201 });

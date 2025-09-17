@@ -73,14 +73,14 @@ function ManageAllTasks() {
         }
 
         const tasksData = await resTasks.json();
-        setTasks(tasksData);
-        console.log('task data : ', tasksData);
+        setTasks(tasksData.slice().reverse());
+        // console.log('task data : ', tasksData);
         setError('');
 
         // Extract tickets from all tasks
         const allTickets = tasksData.flatMap(task => task.tickets || []);
-        setTickets(allTickets);
-        console.log('Fetched tickets:', allTickets);
+        setTickets(allTickets.slice().reverse());
+        // console.log('Fetched tickets:', allTickets);
       } catch (err) {
         setError('Failed to load data');
       } finally {
