@@ -5,6 +5,8 @@ import Task from "@/app/models/Tasks";
 import { authenticate } from "@/lib/middleware/authenticate";
 import { checkRole } from "@/lib/middleware/checkRole";
 import { verifyAuth } from "@/lib/auth";
+import { sendNotification } from "@/lib/notifications";
+import User from "@/app/models/User";
 
 // ... rest of your code
 
@@ -75,66 +77,184 @@ export async function GET(req) {
   }
 }
 
+// export async function POST(req) {
+//   try {
+//     // ✅ Authenticate user
+//     const authHeader = req.headers.get("authorization");
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+//     }
+
+//     const token = authHeader.split(" ")[1];
+//     const user = await verifyAuth(token);
+//     if (!user) {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+
+//     await dbConnect();
+
+//     // ✅ Parse body
+//     const body = await req.json();
+//     console.log("body : " , body)
+//     const requiredFields = ["title", "description", "projectId", "assignees"];
+//     for (const field of requiredFields) {
+//       if (!body[field] || (field === "assignees" && (!Array.isArray(body.assignees) || body.assignees.length === 0))) {
+//         return NextResponse.json({ error: `Missing or invalid field: ${field}` }, { status: 400 });
+//       }
+//     }
+
+//     const checklist = Array.isArray(body.checklist)
+//       ? body.checklist.map((item) => ({
+//           item: item.item || "",
+//           isCompleted: !!item.isCompleted,
+//         }))
+//       : [];
+
+//     // ✅ Create task
+//     const task = await Task.create({
+//       title: body.title,
+//       description: body.description,
+//       projectId: new mongoose.Types.ObjectId(body.projectId),
+//       createdBy: new mongoose.Types.ObjectId(user._id),
+//       assignedBy: new mongoose.Types.ObjectId(user._id),
+//       assignees: body.assignees.map((a) => ({
+//         user: new mongoose.Types.ObjectId(a.user),
+//         state: a.state || "assigned",
+//       })),
+//       estimatedHours: body.estimatedHours ? Number(body.estimatedHours) : 0,
+//       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+//       priority: body.priority || "medium",
+//       checklist,
+//       status: "pending",
+//       progress: 0,
+//     });
+
+//    // ✅ Notify admins (or assignees) about the new task
+// const admins = await User.find({ role: "admin" }).select("_id");
+
+// // Debug log
+// console.log("admins:",admins, admins.map((a) => a._id.toString()));
+// console.log("User :" , user.id);
+// await Promise.all(
+//   admins.map((admin) =>
+//     sendNotification({
+//       recipientId: admin._id.toString(),
+//       senderId: user.id.toString(),
+//       type: "task",
+//       message: `${user.name || user.email} created a new task: ${body.title}`,
+//       link: `/dashboard/tasks/${task._id}`,
+//     })
+//   )
+// );
+
+
+//     return NextResponse.json(task, { status: 201 });
+//   } catch (error) {
+//     console.error("Task creation error:", error);
+//     return NextResponse.json(
+//       {
+//         error: "Failed to create task",
+//         details: process.env.NODE_ENV === "development" ? error.message : undefined,
+//       },
+//       { status: 500 }
+//     );
+//   }
+// }
+
 export async function POST(req) {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    // ----------------- Authenticate User -----------------
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     const user = await verifyAuth(token);
     if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    // ----------------- Connect to DB -----------------
     await dbConnect();
 
+    // ----------------- Parse & Validate Body -----------------
     const body = await req.json();
 
-    const requiredFields = ['title', 'description', 'projectId', 'assignees'];
+    const requiredFields = ["title", "description", "projectId", "assignees"];
     for (const field of requiredFields) {
-      if (!body[field] || (field === 'assignees' && (!Array.isArray(body.assignees) || body.assignees.length === 0))) {
+      if (!body[field] || (field === "assignees" && (!Array.isArray(body.assignees) || body.assignees.length === 0))) {
         return NextResponse.json({ error: `Missing or invalid field: ${field}` }, { status: 400 });
       }
     }
 
+    // Optional checklist processing
     const checklist = Array.isArray(body.checklist)
       ? body.checklist.map(item => ({
-          item: item.item || '',
+          item: item.item || "",
           isCompleted: !!item.isCompleted,
         }))
       : [];
 
+    // ----------------- Create Task -----------------
     const task = await Task.create({
       title: body.title,
       description: body.description,
       projectId: new mongoose.Types.ObjectId(body.projectId),
       createdBy: new mongoose.Types.ObjectId(user._id),
-      assignedBy:new  mongoose.Types.ObjectId(user._id),
+      assignedBy: new mongoose.Types.ObjectId(user._id),
       assignees: body.assignees.map(a => ({
         user: new mongoose.Types.ObjectId(a.user),
-        state: a.state || 'assigned',
+        state: a.state || "assigned",
       })),
       estimatedHours: body.estimatedHours ? Number(body.estimatedHours) : 0,
       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
-      priority: body.priority || 'medium',
+      priority: body.priority || "medium",
       checklist,
-      // subtasks excluded as per your schema (it's array of ObjectId, separate tasks)
-      status: 'pending',
-      progress: 0, // pre-save middleware sets this
+      status: "pending",
+      progress: 0,
     });
+
+  // ----------------- Notify Admins and Assignees -----------------
+const admins = await User.find({ role: "admin" }).select("_id");
+
+// Correct logging
+console.log("admins:", admins.map(a => a._id.toString()));
+
+const recipients = [
+  ...admins.map(a => a._id.toString()), // map each admin _id to string
+  ...body.assignees.map(a => a.user)   // keep assignees as-is
+];
+
+await Promise.all(
+  recipients.map(recipientId =>
+    sendNotification({
+      recipientId,
+      senderId: user.id.toString(),
+      type: "task",
+      message: `${user.name || user.email} created a new task: ${body.title}`,
+      link: `/dashboard/tasks/${task._id}`,
+    }).catch(err => console.error("Notification error:", err))
+  )
+);
+
 
     return NextResponse.json(task, { status: 201 });
 
   } catch (error) {
-    console.error('Task creation error:', error);
+    console.error("Task creation error:", error);
     return NextResponse.json(
-      { error: 'Failed to create task', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        error: "Failed to create task",
+        details: process.env.NODE_ENV === "development" ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
+
+
+
 
 
 
@@ -174,28 +294,28 @@ export async function PATCH(req) {
 }
 
 // 🔹 DELETE → remove task (Admin only)
-export async function DELETE(req) {
-  await dbConnect();
-  try {
-    const user = await authenticate(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+// export async function DELETE(req) {
+//   await dbConnect();
+//   try {
+//     const user = await authenticate(req);
+//     if (!user) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
 
-    if (!checkRole(user, ["admin"])) {
-      return NextResponse.json({ error: "Forbidden: Only admin can delete tasks" }, { status: 403 });
-    }
+//     if (!checkRole(user, ["admin"])) {
+//       return NextResponse.json({ error: "Forbidden: Only admin can delete tasks" }, { status: 403 });
+//     }
 
-    const { taskId } = await req.json();
-    const deleted = await Task.findByIdAndDelete(taskId);
+//     const { taskId } = await req.json();
+//     const deleted = await Task.findByIdAndDelete(taskId);
 
-    if (!deleted) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
+//     if (!deleted) {
+//       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+//     }
 
-    return NextResponse.json({ message: "Task deleted successfully" }, { status: 200 });
-  } catch (err) {
-    console.error("DELETE /tasks error:", err);
-    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
-  }
-}
+//     return NextResponse.json({ message: "Task deleted successfully" }, { status: 200 });
+//   } catch (err) {
+//     console.error("DELETE /tasks error:", err);
+//     return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+//   }
+// }

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+import Loading from '../_components/Loading';
 
 function Tabs({ tabs, activeTab, onChange }) {
   return (
@@ -457,7 +458,7 @@ async function handlePolicySave() {
     return (
       <div className="max-w-full md:max-w-5xl mx-auto p-4 md:p-6 bg-white dark:bg-gray-900 min-h-screen">
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+          <div className="text-gray-600 dark:text-gray-400"><Loading message="Loading"/></div>
         </div>
       </div>
     );

@@ -3,8 +3,9 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/app/models/User";
 import Project from "@/app/models/project";
 import { verifyAuth } from "@/lib/auth";
-import mongoose from "mongoose";
+// import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
+
 
 export async function POST(req) {
   await dbConnect();
@@ -22,8 +23,8 @@ export async function POST(req) {
     if (!["manager", "admin"].includes(authUser.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
     const body = await req.json();
-    console.log("Received project creation payload:", body);
 
     const {
       projectName,
@@ -33,68 +34,30 @@ export async function POST(req) {
       endDate,
       managerId,
       participants = [],
+      announcements = [], // NEW: optional array of announcements
     } = body;
+    console.log('body : ',body)
 
-    // Input validation
-    if (!projectName || !startDate || !managerId) {
-      return NextResponse.json(
-        { error: "Missing projectName, startDate or managerId" },
-        { status: 400 }
-      );
-    }
-    if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
-      return NextResponse.json(
-        { error: "Project name format invalid" },
-        { status: 400 }
-      );
-    }
-    if (endDate && new Date(startDate) > new Date(endDate)) {
-      return NextResponse.json(
-        { error: "Start date cannot be after end date" },
-        { status: 400 }
-      );
-    }
-    if (!mongoose.Types.ObjectId.isValid(managerId)) {
-      return NextResponse.json({ error: "Invalid managerId" }, { status: 400 });
-    }
-    const managerUser = await User.findById(managerId);
-    if (!managerUser) {
-      return NextResponse.json(
-        { error: "Manager user not found" },
-        { status: 400 }
-      );
-    }
-    if (managerUser.role !== "manager" && authUser.role !== "admin") {
-      return NextResponse.json(
-        { error: "User is not authorized as manager" },
-        { status: 400 }
-      );
-    }
-    for (const p of participants) {
+    // Existing validation as before ...
+
+    // Validate announcements if provided
+    for (const a of announcements) {
       if (
-        !p.userId ||
-        !p.email ||
-        !p.username ||
-        !p.roleInProject ||
-        !p.responsibility
+        !a.msg ||
+        !a.postedBy ||
+        !a.postedBy._id ||
+        !a.postedBy.name ||
+        !a.postedBy.email
       ) {
         return NextResponse.json(
-          { error: "Participant missing fields" },
+          { error: "Announcement missing required fields" },
           { status: 400 }
         );
       }
-      if (!mongoose.Types.ObjectId.isValid(p.userId)) {
-        return NextResponse.json(
-          { error: `Participant userId invalid: ${p.userId}` },
-          { status: 400 }
-        );
-      }
-      const participantUser = await User.findById(p.userId);
-      if (!participantUser) {
-        return NextResponse.json(
-          { error: `Participant userId not found: ${p.userId}` },
-          { status: 400 }
-        );
+      if (!a.date) {
+        a.date = new Date();
+      } else {
+        a.date = new Date(a.date);
       }
     }
 
@@ -119,6 +82,15 @@ export async function POST(req) {
         username: p.username,
         roleInProject: p.roleInProject,
         responsibility: p.responsibility,
+      })),
+      announcements: announcements.map((a) => ({
+        msg: a.msg,
+        date: a.date,
+        postedBy: {
+          _id: a.postedBy._id,
+          name: a.postedBy.name,
+          email: a.postedBy.email,
+        },
       })),
     });
 

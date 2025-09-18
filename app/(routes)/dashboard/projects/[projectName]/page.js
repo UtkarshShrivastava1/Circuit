@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +30,15 @@ import Modal from "../../_components/Model";
 import UserHoverCard from "@/app/_components/UserHoverCard";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CreateTaskForm from "../../manage-tasks/CreateTaskForm";
+import Loading from "../../_components/Loading";
+import DeleteProjectModal from "../../_components/ConformationModal";
+import { io } from "socket.io-client";
+
+
+// import downloadFile from "@/lib/downloadFile";
 
 export default function ProjectDetails() {
   const [updatesByDate, setUpdatesByDate] = useState({});
@@ -43,22 +49,88 @@ export default function ProjectDetails() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [todayUpdate, setTodayUpdate] = useState("");
-  const [announcementMsg, setAnnouncementMsg] = useState("");
+  const [announcementMsg,  setAnnouncementMsg] = useState("");
   const [user, setUser] = useState(null);
   const [loadingUpdate, setLoadingUpdate] = useState(false);
-    const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(true);
   const today = new Date().toLocaleDateString("en-IN", {
     timeZone: "Asia/Kolkata",
   });
   // const [selectedMessage, setSelectedMessage] = useState(null);
   const [isUserAuthorized, setIsUserAuthorized] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [file, setFile] = useState(null);
   const [filePost, setFilePost] = useState(null);
   const [tasks, setTasks] = useState([]);
 
+// ---------------- Delete Announcement State ----------------
+const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
+// const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+const [selectedAnnouncementMsg, setSelectedAnnouncementMsg] = useState(null)
+const [socket, setSocket] = useState(null);
+
+useEffect(() => {
+  const newSocket = io(process.env.VAPID_PUBLIC_KEY); // your backend URL
+  setSocket(newSocket);
+
+  // Listen for incoming notifications
+  newSocket.on("receiveNotification", (data) => {
+    toast.info(data.message);
+  });
+
+  return () => newSocket.disconnect();
+}, []);
+useEffect(() => {
+  if (socket && user?._id) {
+    socket.emit("join", user._id);
+  }
+}, [socket, user]);
+
+const openDeleteModal = (announcementId) => {
+  setSelectedAnnouncementId(announcementId);
+  setIsModalOpen(true);
+};
+
+const confirmDelete = () => {
+  if (selectedAnnouncementId) {
+    handleDeleteAnnouncement(selectedAnnouncementId);
+  }
+  setIsModalOpen(false);
+  setSelectedAnnouncementId(null);
+};
+
+
+  const downloadFile = async (fileUrl) => {
+    if (!fileUrl) return;
+
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Extract filename from the URL
+      const fileName = decodeURIComponent(
+        fileUrl.split("/").pop().split("?")[0]
+      );
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error("Failed to download file");
+      console.error(err);
+    }
+  };
+
   const router = useRouter();
-// fetch user and projects 
+  // fetch user and projects
   useEffect(() => {
+
     async function fetchProjectAndUser() {
       setLoading(true);
       try {
@@ -73,14 +145,18 @@ export default function ProjectDetails() {
         if (!userRes.ok) throw new Error("Not authenticated");
         const userData = await userRes.json();
         setUser(userData);
+        console.log("userData : ", userData);
 
+        if (userData.role === "admin") {
+          setIsAdmin(true);
+        }
 
         // Check authorization
         const isAuthorized = projectData.participants.some(
           (p) =>
             p.email === userData.email &&
-            (p.responsibility === "project-manager" ||
-              p.responsibility === "project-member")
+            (p.roleInProject === "project-manager" ||
+              p.roleInProject === "project-member")
         );
         setIsUserAuthorized(isAuthorized);
       } catch (err) {
@@ -92,34 +168,45 @@ export default function ProjectDetails() {
     fetchProjectAndUser();
   }, [projectName]);
 
-
-
-
-  // fetch Announcements 
+  //-------------fetch Announcements---------------------
 
   useEffect(() => {
     if (!projectName) return;
 
+      const controller = new AbortController();
+  const { signal } = controller;
+
     async function fetchAnnouncements() {
       try {
-        const res = await fetch(`/api/projectUpdates/announcements?projectName=${projectName}`);
+        const res = await fetch(
+          `/api/projectUpdates/announcements?projectName=${projectName}`,
+          {signal}
+        );
         if (!res.ok) throw new Error("Failed to load announcements");
+
         const data = await res.json();
+        console.log("data:", data);
 
-        // Assuming data.announcement is array of announcements with fromEmail, date, and post fields
-        // Fetch user data for each announcement's fromEmail on backend or from cached data
-        // For simplicity, assume announcement includes fromUser details already
+        // Use plural 'announcements' per API response
+        const annArray = Array.isArray(data.announcements)
+          ? data.announcements
+          : [];
 
-        // Reverse announcements to show newest first
-        setAnnouncements(data.announcement?.slice().reverse() || []);
+        // Reverse to show newest first safely
+        setAnnouncements(annArray.slice().reverse());
       } catch (err) {
         toast.error(err.message);
       }
     }
 
+    //Delete Announcement
+   
+
     async function fetchUpdates() {
       try {
-        const res = await fetch(`/api/projectUpdates/updates?projectName=${projectName}`);
+        const res = await fetch(
+          `/api/projectUpdates/updates?projectName=${projectName}`
+        );
         if (!res.ok) throw new Error("Failed to load updates");
         const data = await res.json();
 
@@ -146,119 +233,177 @@ export default function ProjectDetails() {
 
     fetchAnnouncements();
     fetchUpdates();
+
+    return () => controller.abort(); // cleanup on unmount / projectName change
   }, [projectName]);
 
 
 
-   {/* -------------------fetiching task --------------------------------- */}
-useEffect(() => {
-  if (!projectName) return;
-  async function fetchTasks() {
-    setTasksLoading(true);
+
+   const handleDeleteAnnouncement = async (announcementId) => {
+     
+        
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          toast.error("Authentication required.");
+          router.push("/login");
+          return;
+        }
+        const res = await fetch(
+          `/api/projectUpdates/announcements/${announcementId}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to delete announcement");
+        }
+        toast.success("Announcement deleted successfully.");
+         setIsModalOpen(false);
+        // Refresh announcements
+        refreshAnnouncements();
+      } catch (err) {
+        toast.error(err.message);
+      }
+    };
+
+    const refreshAnnouncements = async () => {
+      try {
+        const res = await fetch(
+          `/api/projectUpdates/announcements?projectName=${projectName}`
+        );
+        if (!res.ok) throw new Error("Failed to reload announcements");
+        const data = await res.json();
+        const annArray = Array.isArray(data.announcements)
+          ? data.announcements
+          : [];
+        setAnnouncements(annArray.slice().reverse());
+      } catch (err) {
+        toast.error(err.message);
+      }
+    };
+
+  
+
+  {
+    /* -------------------fetiching task --------------------------------- */
+  }
+  useEffect(() => {
+    if (!projectName) return;
+    async function fetchTasks() {
+      setTasksLoading(true);
+      try {
+        // Get token from localStorage
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          console.error("No token found");
+          router.push("/login");
+          return;
+        }
+
+        const res = await fetch(
+          `/api/tasks?projectName=${encodeURIComponent(projectName)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("Tasks fetch error", errorData);
+          throw new Error(errorData.error || "Failed to load tasks");
+        }
+
+        const data = await res.json();
+        // console.log(" Task Data : " , data)
+        setTasks(Array.isArray(data) ? data : data.tasks || []);
+      } catch (e) {
+        console.error("Tasks error", e);
+        if (e.message.includes("Unauthorized")) {
+          router.push("/login");
+        }
+        toast.error(e.message || "Failed to load tasks");
+      } finally {
+        setTasksLoading(false);
+      }
+    }
+    fetchTasks();
+  }, [projectName, router]);
+
+  async function handleDeleteTask(taskId) {
+    if (!confirm("Are you sure you want to delete this task?")) {
+      return;
+    }
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem('token');
-      
+      const token = localStorage.getItem("token");
       if (!token) {
-        console.error('No token found');
-        router.push('/login');
+        toast.error("Authentication required.");
+        router.push("/login");
         return;
       }
 
-      const res = await fetch(`/api/tasks?projectName=${encodeURIComponent(projectName)}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to delete task");
+      }
+
+      toast.success("Task deleted successfully.");
+      // Refresh task list
+      refreshTasks();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }
+
+  {
+    /*----------------Update the refreshTasks function as well-------*/
+  }
+  const refreshTasks = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const res = await fetch(
+        `/api/tasks?projectName=${encodeURIComponent(projectName)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
         const errorData = await res.json();
-        console.error("Tasks fetch error", errorData);
-        throw new Error(errorData.error || "Failed to load tasks");
+        throw new Error(errorData.error || "Failed to refresh tasks");
       }
 
       const data = await res.json();
-      // console.log(" Task Data : " , data)
       setTasks(Array.isArray(data) ? data : data.tasks || []);
     } catch (e) {
-      console.error("Tasks error", e);
-      if (e.message.includes('Unauthorized')) {
-        router.push('/login');
-      }
-      toast.error(e.message || "Failed to load tasks");
-    } finally {
-      setTasksLoading(false);
+      console.error("Tasks refresh error", e);
+      toast.error(e.message);
     }
-  }
-  fetchTasks();
-}, [projectName, router]);
+  };
 
-
-async function handleDeleteTask(taskId) {
-  if (!confirm("Are you sure you want to delete this task?")) {
-    return;
-  }
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.error("Authentication required.");
-      router.push("/login");
-      return;
-    }
-
-    const res = await fetch(`/api/tasks/${taskId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || "Failed to delete task");
-    }
-
-    toast.success("Task deleted successfully.");
-    // Refresh task list
-    refreshTasks();
-  } catch (error) {
-    toast.error(error.message);
-  }
-}
-
-
-{/*----------------Update the refreshTasks function as well-------*/}
-const refreshTasks = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const res = await fetch(`/api/tasks?projectName=${encodeURIComponent(projectName)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || "Failed to refresh tasks");
-    }
-
-    const data = await res.json();
-    setTasks(Array.isArray(data) ? data : data.tasks || []);
-  } catch (e) {
-    console.error("Tasks refresh error", e);
-    toast.error(e.message);
-  }
-};
-
-// console.log(tasks )
-
+  // console.log(tasks )
 
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
   const handleFileChangePost = (e) => setFilePost(e.target.files[0] || null);
@@ -276,7 +421,10 @@ const refreshTasks = async () => {
       if (file) {
         const formData = new FormData();
         formData.append("file", file);
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
         if (!uploadRes.ok) throw new Error("File upload failed");
         const uploadData = await uploadRes.json();
         fileUrl = uploadData.url;
@@ -315,29 +463,53 @@ const refreshTasks = async () => {
     }
   };
 
-  const handlePostAnnouncement = async () => {
-    if (!announcementMsg) {
-      toast.error("Post can't be empty");
+const handlePostAnnouncement = async () => {
+  if (!announcementMsg.trim()) {
+    toast.error("Post can't be empty");
+    return;
+  }
+
+  if (!filePost) {
+    toast.error("Please select a file");
+    return;
+  }
+
+  setLoadingUpdate(true);
+
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("No token found, please login.");
+      router.push("/login");
       return;
     }
-    setLoadingUpdate(true);
 
-    try {
-      let fileUrl = "No Files";
+    // 1. Upload file first
+    const formData = new FormData();
+    formData.append("file", filePost);
 
-      if (filePost) {
-        const formData = new FormData();
-        formData.append("file", filePost);
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-        if (!uploadRes.ok) throw new Error("File upload failed");
-        const uploadData = await uploadRes.json();
-        fileUrl = uploadData.url;
-      }
+    const uploadRes = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
 
+    if (!uploadRes.ok) throw new Error("File upload failed");
+
+    const uploadData = await uploadRes.json();
+    console.log("Upload Data:", uploadData);
+
+    const fileUrl = uploadData.url;
+    if (!fileUrl) throw new Error("Upload response missing URL");
+
+    // 2. Prepare body for announcement
       const body = {
         projectName,
         announcement: {
-          fromEmail: user.email,
+          postedBy: {
+            email: user.email,
+            name: user.name,
+            _id: user._id,
+          },
           date: today,
           post: {
             msg: announcementMsg,
@@ -350,29 +522,31 @@ const refreshTasks = async () => {
         },
       };
 
-      const res = await fetch("/api/projectUpdates/addAnnouncement", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      // 3. Send announcement
+    const res = await fetch("/api/projectUpdates/addAnnouncement", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to post announcement");
-      }
-
-      // Optionally, send notifications here as a separate call if needed
-
-      toast.success("Announcement posted successfully!");
-      setAnnouncementMsg("");
-      setFilePost(null);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoadingUpdate(false);
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Failed to post announcement ,response is not getting");
     }
-  };
 
+    toast.success("Announcement posted successfully!");
+    setAnnouncementMsg("");
+    setFilePost(null);
+  } catch (error) {
+    console.error(error);
+    toast.error(error.message);
+  } finally {
+    setLoadingUpdate(false);
+  }
+};
   const [selectedMessage, setSelectedMessage] = useState(null);
 
   const handleShowModal = (message) => {
@@ -385,7 +559,12 @@ const refreshTasks = async () => {
     setSelectedMessage(null);
   };
 
-  if (loading) return <div className="text-center">Loading...</div>;
+  if (loading)
+    return (
+      <div className="text-center">
+        <Loading message="Loading" />
+      </div>
+    );
   if (!project) return <div className="text-center">Project not found</div>;
 
   const {
@@ -398,31 +577,34 @@ const refreshTasks = async () => {
   } = project;
 
   const formatDate = (dateStr) => {
-  if (!dateStr) return "N/A";
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
-
-
-  const projectManager = participants.find((p) => p.responsibility === "project-manager");
-  const projectMembers = participants.filter((p) => p.responsibility === "project-member");
+  const projectManager = participants.find(
+    (p) => p.responsibility === "project-manager"
+  );
+  const projectMembers = participants.filter(
+    (p) => p.responsibility === "project-member"
+  );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
+    <div className="max-w-6xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
       <Tabs defaultValue="information" className="w-full">
-
-        <TabsList className="grid w-full md:grid-cols-3 gap-2 h-full grid-cols-2">
+        <TabsList className="grid w-full md:grid-cols-4 gap-2 h-full grid-cols-2">
           <TabsTrigger value="information">Information</TabsTrigger>
           <TabsTrigger value="work-updates">Work Updates</TabsTrigger>
-          <TabsTrigger value="announcements" className="w-full flex items-center justify-center">
+          <TabsTrigger
+            value="announcements"
+            className="w-full flex items-center justify-center"
+          >
             Announcements
           </TabsTrigger>
-          <TabsTrigger value="manage-tasks">Create Task</TabsTrigger>
-
+        {isAdmin  && (<TabsTrigger value="manage-tasks">Create Task</TabsTrigger>)}
         </TabsList>
 
         {/* ---------------Information--------------------------------- */}
@@ -431,7 +613,9 @@ const refreshTasks = async () => {
           <Card>
             <CardHeader>
               <CardTitle>Project Information</CardTitle>
-              <CardDescription>Details about the project. {projectDomain}</CardDescription>
+              <CardDescription>
+                Details about the project. {projectDomain}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex md:flex-nowrap flex-wrap flex-row gap-2 md:gap-4">
@@ -449,12 +633,21 @@ const refreshTasks = async () => {
               <div className="flex flex-row md:flex-nowrap flex-wrap gap-2 md:gap-4">
                 <div className="space-y-1 w-full">
                   <Label htmlFor="startDate">Start Date</Label>
-                  <Input id="startDate" type="date" value={formatDate(startDate)}readOnly />
-
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={formatDate(startDate)}
+                    readOnly
+                  />
                 </div>
                 <div className="space-y-1 w-full">
                   <Label htmlFor="endDate">End Date</Label>
-                  <Input id="endDate" type="date" value={formatDate(endDate)} readOnly />
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={formatDate(endDate)}
+                    readOnly
+                  />
                 </div>
               </div>
 
@@ -466,9 +659,15 @@ const refreshTasks = async () => {
                       <UserHoverCard email={projectManager.email} />
                     </div>
                     <div className="flex flex-col truncate">
-                      <div className="font-medium truncate w-48">{projectManager.username}</div>
-                      <div className="text-sm text-gray-500 truncate w-48">{projectManager.email}</div>
-                      <div className="text-sm text-gray-500 truncate w-32">{projectManager.role}</div>
+                      <div className="font-medium truncate w-48">
+                        {projectManager.username}
+                      </div>
+                      <div className="text-sm text-gray-500 truncate w-48">
+                        {projectManager.email}
+                      </div>
+                      <div className="text-sm text-gray-500 truncate w-32">
+                        {projectManager.role}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -484,9 +683,15 @@ const refreshTasks = async () => {
                           <UserHoverCard email={member.email} />
                         </div>
                         <div className="flex flex-col truncate">
-                          <div className="font-medium truncate w-48">{member.username}</div>
-                          <div className="text-sm text-gray-500 truncate w-48">{member.email}</div>
-                          <div className="text-sm text-gray-500 truncate w-32">{member.role}</div>
+                          <div className="font-medium truncate w-48">
+                            {member.username}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate w-48">
+                            {member.email}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate w-32">
+                            {member.role}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -510,7 +715,9 @@ const refreshTasks = async () => {
           <Card>
             <CardHeader>
               <CardTitle>Work Updates</CardTitle>
-              <CardDescription>Track the latest work updates for this project.</CardDescription>
+              <CardDescription>
+                Track the latest work updates for this project.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {isUserAuthorized && project.projectState === "ongoing" ? (
@@ -525,28 +732,41 @@ const refreshTasks = async () => {
                     />
                     <div className="space-y-1">
                       <Label htmlFor="source">Project Source</Label>
-                      <Input id="source" type="file" onChange={handleFileChange} />
+                      <Input
+                        id="source"
+                        type="file"
+                        onChange={handleFileChange}
+                      />
                     </div>
                   </div>
                   <Button onClick={handleUpdateToday} disabled={loadingUpdate}>
-                    {loadingUpdate ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : "Submit Update"}
+                    {loadingUpdate ? (
+                      <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                    ) : (
+                      "Submit Update"
+                    )}
                   </Button>
                 </>
               ) : (
                 <div className="text-center text-gray-500">
-                  {!isUserAuthorized && "You are not authorized to submit work updates for this project."}
-                  {project.projectState === "completed" && "This Project Completed."}
+                  {!isUserAuthorized &&
+                    "You are not authorized to submit work updates for this project."}
+                  {project.projectState === "completed" &&
+                    "This Project Completed."}
                 </div>
               )}
 
-              {(isUserAuthorized || ["admin", "manager"].includes(user?.role)) && (
+              {(isUserAuthorized ||
+                ["admin", "manager"].includes(user?.role)) && (
                 <div>
                   {Object.entries(updatesByDate).map(([date, updates]) => (
                     <div key={date} className="mb-4">
                       <h3 className="font-semibold">{date}</h3>
                       <ul>
                         <Table>
-                          <TableCaption>A list of participant updates.</TableCaption>
+                          <TableCaption>
+                            A list of participant updates.
+                          </TableCaption>
                           <TableHeader>
                             <TableRow>
                               <TableHead>Email</TableHead>
@@ -565,33 +785,46 @@ const refreshTasks = async () => {
                                   <TableCell className="truncate">
                                     <div className="flex flex-row items-center gap-2 justify-start">
                                       <div className="w-9 h-9">
-                                        <UserHoverCard email={participant.email} />
+                                        <UserHoverCard
+                                          email={participant.email}
+                                        />
                                       </div>
                                       <div>
-                                        <p className="truncate overflow-x-hidden">{participant.email}</p>
-                                        <p>Role: {participant.role}</p>
+                                        <p className="truncate overflow-x-hidden">
+                                          {participant.email}
+                                        </p>
+                                        <p>Role: {participant.roleInProject}</p>
                                       </div>
                                     </div>
                                   </TableCell>
 
                                   <TableCell>
-                                    {userUpdate ? "✅ Updated" : "❌ Not Updated"}
+                                    {userUpdate
+                                      ? "✅ Updated"
+                                      : "❌ Not Updated"}
                                   </TableCell>
 
                                   <TableCell className="truncate overflow-hidden">
                                     {userUpdate ? (
                                       <Button
-                                        onClick={() => handleShowModal(userUpdate.workUpdate.msg)}
+                                        onClick={() =>
+                                          handleShowModal(
+                                            userUpdate.workUpdate.msg
+                                          )
+                                        }
                                       >
                                         Message
                                       </Button>
                                     ) : (
-                                      <div className="text-center">No Updates</div>
+                                      <div className="text-center">
+                                        No Updates
+                                      </div>
                                     )}
                                   </TableCell>
 
                                   <TableCell>
-                                    {userUpdate?.workUpdate.source === "No Files" ? (
+                                    {userUpdate?.workUpdate.source ===
+                                    "No Files" ? (
                                       <Button className="text-center w-full cursor-default truncate dark:text-black hover:bg-slate-950 dark:hover:bg-slate-200 text-white overflow-hidden py-2 bg-slate-950 dark:bg-slate-200 rounded-lg px-2">
                                         No Files
                                       </Button>
@@ -603,7 +836,9 @@ const refreshTasks = async () => {
                                             href={userUpdate.workUpdate.source}
                                             className="text-center truncate overflow-hidden"
                                           >
-                                            {userUpdate.workUpdate.source.match(/\.(jpg|jpeg|png)$/i)
+                                            {userUpdate.workUpdate.source.match(
+                                              /\.(jpg|jpeg|png)$/i
+                                            )
                                               ? "View Image"
                                               : "Source Link"}
                                           </Link>
@@ -626,190 +861,171 @@ const refreshTasks = async () => {
           </Card>
         </TabsContent>
 
-        {/* ------------------------Announcement------------------------- */}
 
-        <TabsContent value="announcements">
-          <Card>
-            <CardHeader>
-              <CardTitle>Announcements</CardTitle>
-              <CardDescription>Project announcements and notices.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {isUserAuthorized && project.projectState === "ongoing" && user?.role !== "member" ? (
-                <div className="space-y-1">
-                  <Label htmlFor="announcementMsg">Post</Label>
-                  <Input
-                    id="announcementMsg"
-                    value={announcementMsg}
-                    onChange={(e) => setAnnouncementMsg(e.target.value)}
-                    placeholder="Enter your announcement for today"
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="postImg">Project Source</Label>
-                    <Input
-                      id="postImg"
-                      type="file"
-                      onChange={handleFileChangePost}
-                    />
+      {/* ------------------------Announcement------------------------- */}
+<TabsContent value="announcements">
+  <Card>
+    <CardHeader>
+      <CardTitle>Announcements</CardTitle>
+      <CardDescription>Project announcements and notices.</CardDescription>
+      <div className="text-sm font-medium text-gray-500 ml-4">
+        {projectName || "Unknown Project"}
+      </div>
+    </CardHeader>
+
+    <CardContent className="space-y-2">
+      {isAdmin && project.projectState === "ongoing" && user?.role !== "member" ? (
+        <div className="space-y-4 mb-8 bg-white rounded-xl p-6 shadow dark:bg-black">
+          <Label className="block font-semibold mb-2 dark:text-white" htmlFor="announcementMsg">
+            Post
+          </Label>
+          <Input
+            id="announcementMsg"
+            value={announcementMsg}
+            onChange={(e) => setAnnouncementMsg(e.target.value)}
+            placeholder="Enter your announcement for today"
+            className="w-full border rounded px-4 py-2 mb-2"
+          />
+          <Label className="block font-semibold mb-2" htmlFor="postImg">
+            Project Source
+          </Label>
+          <Input
+            id="postImg"
+            type="file"
+            accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+            onChange={handleFileChangePost}
+            className="w-full border rounded px-4 py-2 mb-2"
+          />
+          <Button onClick={handlePostAnnouncement} disabled={loadingUpdate} variant="secondary">
+            {loadingUpdate ? (
+              <div className="flex w-full items-center">
+                <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                Posting...
+              </div>
+            ) : (
+              "Post Announcement"
+            )}
+          </Button>
+        </div>
+      ) : (
+        <div className="text-center text-gray-500">
+          {!isUserAuthorized && "You are not authorized to post announcements for this project."}
+          {project.projectState === "completed" && "This Project Completed."}
+        </div>
+      )}
+    </CardContent>
+
+    <CardFooter>
+      <CardContent className="px-0 w-full">
+        {isUserAuthorized || ["admin", "manager"].includes(user?.role) ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-1 lg:grid-cols-2">
+            {announcements.map((announcement) => (
+              <Card key={announcement._id} className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <div className="flex items-center border-b pb-2 mb-2">
+                  <div className="w-10 h-10 flex-shrink-0">
+                    <UserHoverCard email={announcement.postedBy?.email} />
                   </div>
-                  <Button onClick={handlePostAnnouncement} disabled={loadingUpdate}>
-                    {loadingUpdate ? (
-                      <Loader2 className="animate-spin mr-2 h-5 w-5" />
-                    ) : (
-                      "Post Announcement"
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500">
-                  {!isUserAuthorized && "You are not authorized to post announcements for this project."}
-                  {project.projectState === "completed" && "This Project Completed."}
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <CardContent className="px-0 w-full">
-                {isUserAuthorized || ["admin", "manager"].includes(user?.role) ? (
-                  <div className="px-0 grid grid-cols-1 gap-1 md:grid-cols-1 lg:grid-cols-2 md:gap-5">
-                    {announcements.map((announcement, index) => (
-                      <Card
-                        key={index}
-                        className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"
+                  <div className="ml-2">
+                    <div className="font-semibold">{announcement.postedBy?.name || "Unknown User"}</div>
+                    <div className="text-sm text-gray-500">
+                      {announcement.date ? new Date(announcement.date).toLocaleString() : ""}
+                    </div>
+                    <div className="text-xs text-gray-400">{projectName || "Unknown Project"}</div>
+                  </div>
+
+                  {/* Delete button aligned to the right */}
+                  {(isAdmin || user?.role === "admin") && (
+                    <div className="ml-auto">
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="bg-red-500 hover:bg-red-700 text-white rounded-full"
+                        onClick={() => openDeleteModal(announcement._id)}
                       >
-                        <div className="flex items-center border-b pb-2 mb-2">
-                          <div className="w-10 h-10 flex-shrink-0">
-                            <UserHoverCard email={announcement.fromUser?.email} />
-                          </div>
-                          <div className="ml-2">
-                            <div className="font-semibold">{announcement.fromUser?.name || "Unknown User"}</div>
-                            <div className="text-sm overflow-x-hidden truncate w-min text-gray-500"></div>
-                            <div className="text-sm text-gray-500">{announcement.date}</div>
-                          </div>
-                        </div>
-                        <p className="mb-4">{announcement.post.msg}</p>
-                        {announcement.post.file && (
-                          <div className="mb-4">
-                            {announcement.post.file.match(/\.(jpg|jpeg|png)$/i) ? (
-                              <div className="flex justify-center items-center">
-                                <Image
-                                  src={announcement.post.file}
-                                  alt="Announcement file"
-                                  width={200}
-                                  height={150}
-                                  className="rounded-lg object-cover"
-                                />
-                              </div>
-                            ) : announcement.post.file === "No Files" ? null : (
-                              <Link
-                                href={announcement.post.file}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                Download File
-                              </Link>
-                            )}
-                          </div>
-                        )}
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center flex items-center justify-center text-gray-500">
-                    {!isUserAuthorized && "You are not authorized to view announcements for this project."}
-                    {project.projectState === "completed" && "This Project Completed."}
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <p className="mb-4">Message: {announcement.msg}</p>
+
+                {/* File attachment */}
+                {announcement.file && announcement.file !== "No Files" && (
+                  <div className="mb-4">
+                    {/\.(jpg|jpeg|png|gif|webp)$/i.test(announcement.file) ? (
+                      <div>
+                        <a href={announcement.file} download target="_blank" rel="noopener noreferrer" className="block">
+                          <Image
+                            src={announcement.file}
+                            alt="Announcement file"
+                            width={200}
+                            height={150}
+                            className="rounded-lg object-cover mb-5"
+                          />
+                        </a>
+                        <Button onClick={() => downloadFile(announcement.file)}>Download Image</Button>
+                      </div>
+                    ) : /\.(pdf)$/i.test(announcement.file) ? (
+                      <div className="mt-4 flex gap-4 items-center">
+                        <a href={announcement.file} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
+                          📎 PDF Attachment
+                        </a>
+                        <Button onClick={() => downloadFile(announcement.file)}>Download PDF</Button>
+                      </div>
+                    ) : (
+                      <div className="mt-4 flex gap-4 items-center">
+                        <a href={announcement.file} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
+                          📎 File Attachment
+                        </a>
+                        <Button onClick={() => downloadFile(announcement.file)}>Download</Button>
+                      </div>
+                    )}
                   </div>
                 )}
-              </CardContent>
-            </CardFooter>
-          </Card>
-        </TabsContent>
- 
-         {/* -------------------Manage-Task---------------------- */}
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-gray-500">
+            {!isUserAuthorized && "You are not authorized to view announcements for this project."}
+            {project.projectState === "completed" && "This Project Completed."}
+          </div>
+        )}
+      </CardContent>
+    </CardFooter>
+
+    {/* ✅ Single Delete Modal here */}
+    <DeleteProjectModal
+      isOpen={isModalOpen}
+       toggle={() => setIsModalOpen(prev => !prev)}
+      projectName="Delete Announcement"
+      loading={loadingUpdate}
+      onCancel={() => setIsModalOpen(false)}
+      onConfirm={confirmDelete}
+    />
+  </Card>
+</TabsContent>
+
+
+        {/* -------------------Manage-Task---------------------- */}
         <TabsContent value="manage-tasks">
-
           <CreateTaskForm
-  projectId={project._id}
-  projectName={project.projectName}  // pass projectName here
-  currentUser={user}
-  onTaskCreated={refreshTasks}
-/>
-          {/* <Card>
-            <CardHeader>
-              <CardTitle>Manage Tasks</CardTitle>
-              <CardDescription>Create and track tasks for this project.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {(["admin", "manager"].includes(user?.role) || projectManager?.email === user?.email) ? (
-                <>
-                 
-                  {tasksLoading ? (
-                    <p className="text-gray-500">Loading tasks…</p>
-                  ) : tasks.length === 0 ? (
-                    <p className="text-gray-500">No tasks yet.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Manager</TableHead>
-                          <TableHead>Members</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                     
-
-<TableBody>
-  {tasks.map((t) => (
-    <TableRow key={t._id || t.id}>
-      <TableCell className="font-medium">{t.title}</TableCell>
-      <TableCell>{t.manager?.email || t.manager?._id || "—"}</TableCell>
-      <TableCell>
-        {(t.members || t.memberIds || []).map((m, i) => (
-          <span
-            key={i}
-            className="inline-block mr-2 mb-1 text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700"
-            title={`${m.email || m.username || m.name} - ${m.role || 'No role'}`}
-          >
-            {m.email || m.username || m.name || String(m)}
-          </span>
-        ))}
-      </TableCell>
-      <TableCell>{t.status || "open"}</TableCell>
-      <TableCell className="flex gap-2">
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/dashboard/manage-tasks/${t._id}/update`)}
-        >
-          Edit
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={() => handleDeleteTask(t._id)}
-        >
-          Delete
-        </Button>
-      </TableCell>
-    </TableRow>
-  ))}
-</TableBody>
-
-                    </Table>
-                  )}
-                </>
-              ) : (
-                <p className="text-center text-gray-500">
-                  Only project managers or admins can create tasks for this project.
-                </p>
-              )}
-            </CardContent>
-          </Card> */}
+            projectId={project._id}
+            projectName={project.projectName} // pass projectName here
+            currentUser={user}
+            onTaskCreated={refreshTasks}
+            socket={socket} 
+          />
         </TabsContent>
-       
       </Tabs>
 
       <ToastContainer />
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} message={selectedMessage} />
+      {/* <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        message={selectedMessage || selectedAnnouncementMsg}
+      /> */}
     </div>
   );
 }
