@@ -97,6 +97,7 @@ assignees:[
 assignedTeams: [{ type: mongoose.Schema.Types.ObjectId, ref: "Team" }], 
 assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, 
 projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
+projectName : {type: String},
 
   /* 🔹 Dependencies */
   dependencies: [{

@@ -1,5 +1,5 @@
-"use client";
 
+'use client';
 import { useEffect, useState } from "react";
 import ProjectCard from "@/app/(routes)/dashboard/_components/ProjectCard";
 import { useRouter } from "next/navigation";
@@ -8,16 +8,16 @@ import { FolderX } from "lucide-react";
 import Loading from "../_components/Loading";
 
 // Helper function to format date
-function formatDate(dateStr) {
-  if (!dateStr) return "No date";
-  const date = new Date(dateStr);
-  if (isNaN(date)) return "Invalid date";
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short", // Jan, Feb, etc.
-    day: "numeric",
-  });
-}
+// function formatDate(dateStr) {
+//   if (!dateStr) return "No date";
+//   const date = new Date(dateStr);
+//   if (isNaN(date)) return "Invalid date";
+//   return date.toLocaleDateString("en-US", {
+//     year: "numeric",
+//     month: "short", // Jan, Feb, etc.
+//     day: "numeric",
+//   });
+// }
 
 const ProjectList = () => {
   const [projects, setProjects] = useState([]);
@@ -53,7 +53,7 @@ const checkAuthAndLoadProjects = async () => {
 
     const data = await res.json();
     setProjects(data);
-    console.log('data : ' , data)
+    // console.log('data : ' , data)
   } catch (err) {
     console.error('Error fetching projects:', err);
     if (err.message === 'Invalid token') {

@@ -73,6 +73,7 @@ const UpdateProject = () => {
           endDate: projectData.endDate ? projectData.endDate.split("T")[0] : "",
         });
         setParticipants(projectData.participants || []);
+        // console.log('projectData.participants',projectData.participants)
 
 
         // console.log('participants : ' , projectData.participants);
@@ -122,19 +123,22 @@ const UpdateProject = () => {
       toast.error("Please select all fields for the participant.");
       return;
     }
+
     if (participants.find((p) => p.email === selectedUser)) {
       toast.error("Participant already added.");
       return;
     }
 
     const newEntry = {
-      email: selectedUser,
-      role: selectedRole,
-      responsibility: selectedResponsibility,
-      profileImage: selectedUserData?.profileImgUrl,
-      userRole: selectedUserData?.role,
-      username: selectedUserData?.name,
-    };
+    email: selectedUser,
+    roleInProject: selectedRole,
+    responsibility: selectedResponsibility,
+    profileImage: selectedUserData?.profileImgUrl,
+    userRole: selectedUserData?.role,
+    username: selectedUserData?.name,
+    userId: selectedUserData // or build object { email, name, _id }
+  };
+
 
     setParticipants((prev) => [...prev, newEntry]);
 
@@ -163,33 +167,31 @@ const UpdateProject = () => {
       return;
     }
 
-    const projectManagerCount = participants.filter(
-      (p) => p.responsibility  === "project-manager"
-    ).length;
+   
 
 
 
-    if (projectManagerCount !== 1) {
-      setError("There must be exactly one project manager.");
-      setLoading(false);
-      return;
-    }
+    // if (projectManagerCount !== 1) {
+    //   setError("There must be exactly one project manager.");
+    //   setLoading(false);
+    //   return;
+    // }
 
 
-    console.log(" Participants: ", participants);
+    // console.log(" Participants: ", participants);
 
 
-    const projectMemberCount = participants.filter(
-      (p) => p.responsibility === "project-member"
-    ).length;
+    // const projectMemberCount = participants.filter(
+    //   (p) => p.responsibility === "project-member"
+    // ).length;
 
-    console.log(projectMemberCount )
+    // console.log(projectMemberCount )
 
-    if (projectMemberCount < 1) {
-      setError("There must be at least one project member.");
-      setLoading(false);
-      return;
-    }
+    // if (projectMemberCount < 1) {
+    //   setError("There must be at least one project member.");
+    //   setLoading(false);
+    //   return;
+    // }
 
     try {
       const projectName = formData.projectName.toLowerCase();
@@ -212,7 +214,7 @@ const UpdateProject = () => {
       }
 
       toast.success("Project updated successfully!");
-      router.push("/dashboard");
+      router.push("/dashboard/projects");
     } catch (err) {
       setError(err.message);
       toast.error(`Error updating project: ${err.message}`);
@@ -221,7 +223,7 @@ const UpdateProject = () => {
     }
   };
 
-  if (!currentUserRole) return <div className="text-center"><Loading message="Loading"/></div>;
+  if (!currentUserRole) return <div className="text-center"><Loading message="Loading..."/></div>;
 
   const selectedUserObj = selectedUser
     ? allUsers.find((u) => u.email === selectedUser)
@@ -404,17 +406,11 @@ const UpdateProject = () => {
                       className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                     >
                       <option value="">Select Role</option>
-                      <option value="content">Content</option>
-                      <option value="research">Research</option>
-                      <option value="design">Design</option>
-                      <option value="development">Development</option>
-                      <option value="frontend">Frontend</option>
-                      <option value="backend">Backend</option>
-                      <option value="fullstack">Full Stack</option>
-                      <option value="testing">Testing</option>
-                      <option value="debugging">Debugging</option>
-                      <option value="deployment">Deployment</option>
-                      <option value="maintain">Maintain</option>
+                      <option value="project-manager"
+                               disabled={participants.some(p => p.roleInProject === "project-manager")}>
+                                Project Manager</option>
+                              <option value="project-member">Project Member</option>
+                     
                     </select>
                   </div>
                 </div>
@@ -426,12 +422,20 @@ const UpdateProject = () => {
                               id="responsibility"
                               value={selectedResponsibility}
                               onChange={(e) => setSelectedResponsibility(e.target.value)}
+                               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                             >
                               <option value="">Select Responsibility</option>
-                              <option value="project-manager"
-                               disabled={participants.some(p => p.responsibility === "project-manager")}>
-                                Project Manager</option>
-                              <option value="project-member">Project Member</option>
+                               <option value="content">Content</option>
+                               <option value="research">Research</option>
+                               <option value="design">Design</option>
+                               <option value="development">Development</option>
+                               <option value="frontend">Frontend</option>
+                               <option value="backend">Backend</option>
+                               <option value="fullstack">Full Stack</option>
+                               <option value="testing">Testing</option>
+                               <option value="debugging">Debugging</option>
+                               <option value="deployment">Deployment</option>
+                               <option value="maintain">Maintain</option>
                         </select>
 
                   </div>
@@ -450,42 +454,55 @@ const UpdateProject = () => {
             <div className="space-y-1">
               <Label>Current Participants</Label>
               <div className="grid grid-cols-1 gap-2">
-                {participants.map((p) => (
-                  <Card key={p.email} className="flex md:items-center pt-4 md:flex-row flex-col">
-                    <CardContent className="flex flex-col w-full p-4">
-                      <div className="flex flex-row items-center space-x-2">
-                        <div className="flex-shrink-0">
-                          <Image
-                            src={p.profileImage || "/user.png"}
-                            alt={`${p.username || p.email}'s profile`}
-                            width={40}
-                            height={40}
-                            className="rounded-full"
-                          />
-                        </div>
-                        <div className="flex flex-col overflow-hidden">
-                          <span className="font-semibold truncate">
-                            {p.username || p.email}
-                          </span>
-                          <span className="font-semibold text-sm truncate">{p.email}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <span className="block truncate">{p.role}</span>
-                        <span className="block truncate">{p.responsibility}</span>
-                      </div>
-                    </CardContent>
+               {participants.map((p) => (
+  <Card
+    key={p.email}
+    className="flex flex-col md:flex-row items-center md:items-start gap-4 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-shadow hover:shadow-md"
+  >
+    <CardContent className="flex items-center gap-4 flex-grow p-0">
+      <div className="flex-shrink-0">
+        <Image
+          src={p.profileImage || "/user.png"}
+          alt={`${p.username || p.email}'s profile`}
+          width={48}
+          height={48}
+          className="rounded-full border-2 border-indigo-500 dark:border-indigo-400 object-cover"
+        />
+      </div>
+      <div className="flex flex-col overflow-hidden min-w-0">
+        <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 truncate">
+          {p.username || p.email}
+        </span>
+        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+          {p.email}
+        </span>
+        {/* <span className="text-xs uppercase tracking-wide text-indigo-600 dark:text-indigo-400 mt-1 truncate">
+          {p.userRole || "No Role"}
+        </span> */}
+        <div className="mt-2 space-y-1">
+          <p className="text-sm text-gray-700 dark:text-indigo-400 mt-1 truncate"> 
+            <strong>Role: </strong> {p.roleInProject}
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
+            <strong>Responsibility: </strong> {p.responsibility}
+          </p>
+        </div>
+      </div>
+    </CardContent>
 
-                    <CardFooter>
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleRemoveParticipant(p.email)}
-                      >
-                        Remove
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+    <CardFooter className="p-0 md:pl-4 flex justify-end md:justify-center w-full md:w-auto">
+      <Button
+        variant="destructive"
+        size="sm"
+        className="px-4 py-1.5 text-sm font-semibold whitespace-nowrap"
+        onClick={() => handleRemoveParticipant(p.email)}
+      >
+        Remove
+      </Button>
+    </CardFooter>
+  </Card>
+))}
+
               </div>
             </div>
           </CardContent>

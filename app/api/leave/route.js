@@ -58,6 +58,7 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
 
   const user = await User.findById(decoded.id);
+  console.log("Leave :",user);
   if (!user)
     return NextResponse.json({ success: false, error: 'User not found' }, { status: 401 });
 

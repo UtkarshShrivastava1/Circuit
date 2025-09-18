@@ -36,6 +36,7 @@ import CreateTaskForm from "../../manage-tasks/CreateTaskForm";
 import Loading from "../../_components/Loading";
 import DeleteProjectModal from "../../_components/ConformationModal";
 import { io } from "socket.io-client";
+import { format } from "date-fns";
 
 
 // import downloadFile from "@/lib/downloadFile";
@@ -145,7 +146,7 @@ const confirmDelete = () => {
         if (!userRes.ok) throw new Error("Not authenticated");
         const userData = await userRes.json();
         setUser(userData);
-        console.log("userData : ", userData);
+        // console.log("userData : ", userData);
 
         if (userData.role === "admin") {
           setIsAdmin(true);
@@ -576,21 +577,26 @@ const handlePostAnnouncement = async () => {
     participants,
   } = project;
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    return new Date(dateStr).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  // Utility to format date to yyyy-mm-dd string for input[type='date']
+const toInputDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  // padStart to ensure 2-digit month/day
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+//  console.log('End Date',toInputDate(endDate));
 
   const projectManager = participants.find(
-    (p) => p.responsibility === "project-manager"
+    (p) => p.roleInProject === "project-manager"
   );
   const projectMembers = participants.filter(
-    (p) => p.responsibility === "project-member"
+    (p) => p.roleInProject === "project-member"
   );
+
+  // console.log('project;',project);
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
@@ -623,7 +629,6 @@ const handlePostAnnouncement = async () => {
                   <Label htmlFor="projectName">Project Name</Label>
                   <Input id="projectName" value={pname} readOnly />
                 </div>
-
                 <div className="space-y-1 w-full">
                   <Label htmlFor="projectState">Project State</Label>
                   <Input id="projectState" value={projectState} readOnly />
@@ -636,7 +641,7 @@ const handlePostAnnouncement = async () => {
                   <Input
                     id="startDate"
                     type="date"
-                    value={formatDate(startDate)}
+                    value={toInputDate(startDate)}
                     readOnly
                   />
                 </div>
@@ -645,7 +650,7 @@ const handlePostAnnouncement = async () => {
                   <Input
                     id="endDate"
                     type="date"
-                    value={formatDate(endDate)}
+                    value={toInputDate(endDate)}
                     readOnly
                   />
                 </div>
@@ -998,7 +1003,7 @@ const handlePostAnnouncement = async () => {
     {/* ✅ Single Delete Modal here */}
     <DeleteProjectModal
       isOpen={isModalOpen}
-       toggle={() => setIsModalOpen(prev => !prev)}
+      //  toggle={() => setIsModalOpen(prev => !prev)}
       projectName="Delete Announcement"
       loading={loadingUpdate}
       onCancel={() => setIsModalOpen(false)}

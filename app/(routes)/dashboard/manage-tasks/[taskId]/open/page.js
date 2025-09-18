@@ -42,7 +42,7 @@ export default function TaskDetailPage() {
     try {
       const res = await fetch(`/api/tasks/${pendingDeleteTaskId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization:  `Bearer ${token}` },
       });
       if (!res.ok) {
         const data = await res.json();
@@ -74,6 +74,7 @@ export default function TaskDetailPage() {
         const taskData = await resTask.json();
         setUserRole(userData.role);
         setTask(taskData);
+        console.log("Task Data ",taskData)
         setStatus(taskData.status || 'pending');
       } catch (error) {
         toast.error(error.message);

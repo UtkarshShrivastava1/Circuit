@@ -73,14 +73,14 @@ function ManageAllTasks() {
         }
 
         const tasksData = await resTasks.json();
-        setTasks(tasksData);
-        console.log('task data : ', tasksData);
+        setTasks(tasksData.slice().reverse());
+        // console.log('task data : ', tasksData);
         setError('');
 
         // Extract tickets from all tasks
         const allTickets = tasksData.flatMap(task => task.tickets || []);
-        setTickets(allTickets);
-        console.log('Fetched tickets:', allTickets);
+        setTickets(allTickets.slice().reverse());
+        // console.log('Fetched tickets:', allTickets);
       } catch (err) {
         setError('Failed to load data');
       } finally {
@@ -154,7 +154,7 @@ function ManageAllTasks() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 bg-white dark:bg-slate-950">
+    <div className="max-w-7xl mx-auto overflow-auto px-4 py-6 bg-white dark:bg-slate-950">
       {/* Tabs */}
       <div className="flex border-b border-gray-300 dark:border-slate-700 mb-6">
         <button
@@ -184,8 +184,8 @@ function ManageAllTasks() {
                 <tr className="text-left text-sm font-medium text-gray-700 dark:text-slate-300">
                   <th className="p-3">Title</th>
                   <th className="p-3">Project</th>
-                  <th className="p-3">Manager</th>
-                  <th className="p-3">Members</th>
+                  {/* <th className="p-3">Manager</th> */}
+                  <th className="p-3">Assiged</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Actions</th>
                 </tr>
@@ -202,11 +202,11 @@ function ManageAllTasks() {
                       </span>
                     </td>
                     
-                    <td className="p-3">{task.manager?.email || '-'}</td>
+                    {/* <td className="p-3">{task.manager?.email || '-'}</td> */}
                     <td className="p-3">
                       {(task.assignees || [])
                         .filter(Boolean)
-                        .map(a => a.user?.email || a.user?.name || '')
+                        .map(a => a.user?.name|| a.user?.email || '')
                         .join(', ') || '-'}
                     </td>
                     <td className="p-3">
