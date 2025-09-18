@@ -1,36 +1,36 @@
 "use client";
-import { useState } from "react";
-import { Bell } from "lucide-react";
-import { useSocket } from "@/lib/useSocket";
+import { useEffect, useState } from "react";
+import { getSocket } from "@/lib/socket";
 
 export default function NotificationBell({ userId }) {
   const [notifications, setNotifications] = useState([]);
 
-  useSocket(userId, (data) => {
-    setNotifications((prev) => [data, ...prev]);
-  });
+  useEffect(() => {
+    if (!userId) return;
+
+    const socket = getSocket();
+    socket.emit("join", userId);
+
+    const handleNotif = (notif) => {
+      setNotifications((prev) => [notif, ...prev]);
+    };
+
+    socket.on("notification", handleNotif);
+
+    return () => {
+      socket.off("notification", handleNotif);
+    };
+  }, [userId]);
 
   return (
     <div className="relative">
-      <Bell className="w-6 h-6 text-gray-700 cursor-pointer" />
-      {notifications.length > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-full">
-          {notifications.length}
-        </span>
-      )}
-
-      {/* Dropdown list */}
-      <div className="absolute right-0 mt-2 w-64 bg-white shadow-md rounded-lg border">
-        {notifications.length === 0 ? (
-          <p className="p-2 text-gray-500 text-sm">No new notifications</p>
-        ) : (
-          notifications.map((n, i) => (
-            <p key={i} className="p-2 text-sm border-b last:border-none">
-              {n.message}
-            </p>
-          ))
+      <button className="relative">🔔
+        {notifications.length > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2">
+            {notifications.length}
+          </span>
         )}
-      </div>
+      </button>
     </div>
   );
 }

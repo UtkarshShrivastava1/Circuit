@@ -1003,7 +1003,7 @@ const toInputDate = (dateStr) => {
     {/* ✅ Single Delete Modal here */}
     <DeleteProjectModal
       isOpen={isModalOpen}
-       toggle={() => setIsModalOpen(prev => !prev)}
+      //  toggle={() => setIsModalOpen(prev => !prev)}
       projectName="Delete Announcement"
       loading={loadingUpdate}
       onCancel={() => setIsModalOpen(false)}

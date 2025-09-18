@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 
 export default function AttendancePage() {
   const [userRole, setUserRole] = useState(null);
+  const [user,setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Attendance marker state
@@ -33,21 +34,32 @@ export default function AttendancePage() {
     userId: "",
   });
 
+   const SOCKET_URL =
+    typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
+      ? process.env.NEXT_PUBLIC_SOCKET_URL
+      : window?.location?.origin || "";
+      const socket = io(SOCKET_URL);
+
   // Fetch user role on mount
   useEffect(() => {
     setIsLoading(true);
     fetch("/api/auth/session")
       .then((res) => res.json())
       .then((data) => {
+        setUser(data);
         setUserRole(data.role);
         setActiveTab(data.role === "admin" ? "approve" : "mark");
         setIsLoading(false);
+        console.log('user Data from  : ',data)
       })
       .catch(() => {
         setUserRole(null);
         setIsLoading(false);
       });
   }, []);
+
+
+  
 
   // Fetch latest attendance (self)
   const fetchMyAttendance = async () => {
@@ -66,31 +78,47 @@ export default function AttendancePage() {
     }
   };
 
-  // Mark attendance (self)
-  const handleMarkAttendance = async () => {
-    setIsMarking(true);
-    try {
-      const res = await fetch("/api/attendance/mark", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ status: "present", workMode }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage(`✅ Attendance marked (${workMode})!`);
-        await fetchMyAttendance();
+const handleMarkAttendance = async () => {
+  setIsMarking(true);
+  try {
+    const res = await fetch('/api/attendance/mark', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ status: 'present', workMode }),
+    });
+    const data = await res.json();
+    
+    if (res.ok) {
+      setMessage(`✅ Attendance marked (${workMode})!`);
+      
+      // Send notification to admin/manager
+      if (socket) {
+        socket.emit("MemberAttendance", {
+          senderId: user._id,
+          message: `📌 Attendance request from ${user.name} (${workMode})`,
+          role: "admin" || "manager",
+        });
+      }
+      
+      await fetchMyAttendance();
+    } else {
+      // Enhanced error handling for duplicate attendance
+      if (data.existingAttendance) {
+        setMessage(`${data.error}. Last marked: ${format(new Date(data.existingAttendance.date), 'HH:mm')}`);
       } else {
         setMessage(data.error || "❌ Failed to mark attendance");
       }
-    } catch (error) {
-      setMessage("⚠️ Error marking attendance");
-    } finally {
-      setIsMarking(false);
     }
-  };
+  } catch (error) {
+    setMessage('⚠️ Error marking attendance');
+  } finally {
+    setIsMarking(false);
+  }
+};
+
 
   // ---------- For approval/report (admin/manager) ----------
   const fetchPending = async () => {
@@ -112,7 +140,17 @@ export default function AttendancePage() {
     });
     if (res.ok) {
       setRequests(requests.filter((r) => r._id !== id));
+          // 👉 Send notification to Member
+      if (socket) {
+        socket.emit("AttendanceAprove", {
+          ReciverId: user._id,
+          message: `📌 Attendance request is ${action} `,
+          role: "admin" || "manager", // server should broadcast to all admins
+        });
+      }
       fetchSummary();
+
+
     }
   };
 
