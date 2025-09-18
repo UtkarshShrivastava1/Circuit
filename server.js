@@ -152,8 +152,14 @@ const onlineUsers = {}; // { socketId: { userId, role } }
   console.log(response); // "got it"
 });
 
-  server.listen(3000, (err) => {
-    if (err) throw err;
-    console.log(`> 🏃‍➡️Ready on http://localhost:3000`);
+
+  server.all('*', (req, res) => {
+    return handle(req, res);
+  });
+
+  
+  const PORT = process.env.PORT || 3000;
+  httpServer.listen(PORT, () => {
+    console.log(`> Ready on http://localhost:${PORT}`);
   });
 });
