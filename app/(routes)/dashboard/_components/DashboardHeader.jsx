@@ -16,6 +16,8 @@ import axios from "axios";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "react-toastify";
 import { getSocket } from "@/lib/socket";
+import NotificationPermission from "@/app/_components/NotificationPermission";
+// import webpush from "@/lib/webpush";
 
 export default function DashboardHeader() {
   const [userData, setUserData] = useState(null);
@@ -55,6 +57,8 @@ export default function DashboardHeader() {
     if (!userData?._id) return;
 
     Notification.requestPermission();
+
+    
 
     const socket = getSocket();
 
