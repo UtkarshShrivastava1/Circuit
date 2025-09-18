@@ -73,45 +73,47 @@ export default function AttendancePage() {
     }
   };
 
-  // Mark attendance (self)
-  const handleMarkAttendance = async () => {
+const handleMarkAttendance = async () => {
+  setIsMarking(true);
+  try {
+    const res = await fetch('/api/attendance/mark', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ status: 'present', workMode }),
+    });
+    const data = await res.json();
     
-    setIsMarking(true);
-    try {
-      const res = await fetch('/api/attendance/mark', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ status: 'present', workMode }),
-      });
-      const data = await res.json();
-      console.log('Attendance data : ',data)
-      if (res.ok) {
-        setMessage(`✅ Attendance marked (${workMode})!`);
-
-          // 👉 Send notification to admin/manager
+    if (res.ok) {
+      setMessage(`✅ Attendance marked (${workMode})!`);
+      
+      // Send notification to admin/manager
       if (socket) {
         socket.emit("MemberAttendance", {
           senderId: user._id,
           message: `📌 Attendance request from ${user.name} (${workMode})`,
-          role: "admin" || "manager", // server should broadcast to all admins
+          role: "admin" || "manager",
         });
       }
-
-
-
-        await fetchMyAttendance();
+      
+      await fetchMyAttendance();
+    } else {
+      // Enhanced error handling for duplicate attendance
+      if (data.existingAttendance) {
+        setMessage(`${data.error}. Last marked: ${format(new Date(data.existingAttendance.date), 'HH:mm')}`);
       } else {
         setMessage(data.error || '❌ Failed to mark attendance');
       }
-    } catch (error) {
-      setMessage('⚠️ Error marking attendance');
-    } finally {
-      setIsMarking(false);
     }
-  };
+  } catch (error) {
+    setMessage('⚠️ Error marking attendance');
+  } finally {
+    setIsMarking(false);
+  }
+};
+
 
   // ---------- For approval/report (admin/manager) ----------
   const fetchPending = async () => {
