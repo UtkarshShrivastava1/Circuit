@@ -26,6 +26,12 @@ export default function DashboardHeader() {
   const notifRef = useRef(null);
   const router = useRouter();
 
+  function showSystemNotification(title, message) {
+    if (Notification.permission === "granted") {
+      new Notification(title, { body: message });
+    }
+  }
+
   useEffect(() => {
     let mounted = true;
     async function fetchSession() {
@@ -33,6 +39,7 @@ export default function DashboardHeader() {
         const res = await axios.get("/api/auth/session");
         if (!mounted) return;
         if (res.status === 200) setUserData(res.data);
+        console.log(res.data);
       } catch (error) {
         console.log("Session error:", error);
         setUserData(null);
@@ -47,16 +54,22 @@ export default function DashboardHeader() {
   useEffect(() => {
     if (!userData?._id) return;
 
+    Notification.requestPermission();
+
     const socket = getSocket();
 
     socket.on("connect", () => {
       console.log("✅ Connected:", socket.id);
-      socket.emit("register", userData._id);
+      socket.emit("register", {
+        userId: userData._id,
+        role: userData.role,
+      });
     });
 
     const handleNotif = (notif) => {
       setNotifications((prev) => [notif, ...prev]);
       setUnreadCount((prev) => prev + 1);
+      showSystemNotification(notif.title || "Update", notif.message);
       toast.info(notif.message, { autoClose: 4000, theme: "colored" });
     };
 
@@ -120,7 +133,9 @@ export default function DashboardHeader() {
           <div
             onClick={() =>
               userData?.email &&
-              router.push(`/dashboard/profiles/${encodeURIComponent(userData.email)}`)
+              router.push(
+                `/dashboard/profiles/${encodeURIComponent(userData.email)}`
+              )
             }
             className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-1 transition-colors truncate"
             title={userData?.name || userData?.email}
@@ -152,7 +167,8 @@ export default function DashboardHeader() {
         {/* Center - Welcome message */}
         <div className="hidden md:flex flex-1 items-center justify-center">
           <p className="text-sm text-gray-700 dark:text-gray-300 truncate select-none">
-            Welcome back{userData?.name ? `, ${userData.name.split(" ")[0]}` : ""}.
+            Welcome back
+            {userData?.name ? `, ${userData.name.split(" ")[0]}` : ""}.
           </p>
         </div>
 
@@ -177,7 +193,9 @@ export default function DashboardHeader() {
             {notifOpen && (
               <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-900 shadow-lg rounded-lg z-50">
                 <div className="p-3 border-b dark:border-gray-700 flex items-center justify-between">
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Notifications</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                    Notifications
+                  </h4>
                   <button
                     className="text-xs opacity-70 hover:opacity-100 transition-opacity"
                     onClick={() => {
@@ -234,4 +252,3 @@ export default function DashboardHeader() {
     </header>
   );
 }
-

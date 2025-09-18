@@ -16,6 +16,7 @@ export async function GET(req) {
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.id);
+    console.log('user',user)
 
     if (!["manager", "admin"].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

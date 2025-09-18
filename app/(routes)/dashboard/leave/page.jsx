@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Loading from '../_components/Loading';
+import {io} from 'socket.io-client'
+import { getSocket } from "@/lib/socket";
 
 function Tabs({ tabs, activeTab, onChange }) {
   return (
@@ -69,8 +71,15 @@ export default function LeaveManagementPage() {
   const [policyForm, setPolicyForm] = useState({ maxPaidLeavesPerMonth: 0, notes: '' });
   const [form, setForm] = useState({ leaveType: 'paid', startDate: '', endDate: '', reason: '' });
   const [loading, setLoading] = useState(true);
+  const [userData ,setUserData] = useState(null)
 
   const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+
+  const SOCKET_URL =
+      typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
+        ? process.env.NEXT_PUBLIC_SOCKET_URL
+        : window?.location?.origin || "";
+        const socket = io(SOCKET_URL);
 
   // Simplified helper function to format decision text
   const formatDecision = useCallback((decision) => {
@@ -137,6 +146,8 @@ export default function LeaveManagementPage() {
         const leaves = json?.data || [];
         
         setMyLeaves(leaves);
+
+
         
         // Calculate used leaves (no user filtering needed - backend already filtered)
         const used = calculateUsedLeaves(leaves);
@@ -219,15 +230,19 @@ export default function LeaveManagementPage() {
       // Fetch session first - similar to attendance
       const resSession = await fetch('/api/auth/session', { headers: { Authorization: `Bearer ${token}` } });
       if (!resSession.ok) {
+        setUserData(null)
         setUserRole(null);
         setLoading(false);
         return;
       }
 
       const userData = await resSession.json();
+      setUserData(userData);
       setUserRole(userData.role);
       setCurrentUser(userData); // Store current user info
 
+
+      console.log("User data from : ",userData)
       // Auto-switch admin to approve tab
       if (userData.role === 'admin' && activeTab === 'apply') {
         setActiveTab('approve');
@@ -271,6 +286,31 @@ export default function LeaveManagementPage() {
   useEffect(() => {
     fetchTabData();
   }, [fetchTabData]);
+
+
+   useEffect(() => {
+    if (!userData?._id) return;
+
+    const socket = getSocket();
+
+    socket.on("connect", () => {
+      console.log("✅ Socket connected:", socket.id);
+      // Register user for notifications
+      socket.emit("register", { userId: userData._id, role: userData.role });
+    });
+
+    // Listen for leave notifications
+    socket.on("LeaveNotification", (notif) => {
+      console.log("📢 New leave notification:", notif);
+      setNotifications((prev) => [notif, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+      toast.info(notif.message, { autoClose: 4000, theme: "colored" });
+    });
+
+    return () => {
+      socket.off("LeaveNotification");
+    };
+  }, [userData?._id]);
 
   // Remove 'history' tab for admin users
   const tabs = [
@@ -321,6 +361,7 @@ export default function LeaveManagementPage() {
       setMsg('Unauthorized.');
       return;
     }
+     if (!socket) return;
 
     try {
       const res = await fetch('/api/leave', {
@@ -332,15 +373,24 @@ export default function LeaveManagementPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setMsg('Leave application submitted!');
+
         setForm({ leaveType: 'paid', startDate: '', endDate: '', reason: '' });
         // Refresh only necessary data
         await fetchMyLeaves();
+             // 👉 Send notification to admin/manager
+      const socket = getSocket();
+    socket.emit("MemberLeave", {
+      senderId: userData._id,
+      role: userData.role,
+      message: `📅 Leave applied by ${userData.name} for ${reason || 'undefined'}`,
+    });
         if (userRole === 'admin' || userRole === 'manager') {
           await fetchPendingLeaves();
         }
-      } else {
-        setMsg(data.error || 'Failed to submit leave.');
       }
+      //  else {
+      //   setMsg(data.error || 'Failed to submit leave.');
+      // }
     } catch (error) {
       setMsg('Failed to submit leave.');
     }
@@ -365,6 +415,12 @@ export default function LeaveManagementPage() {
         setMsg(`Leave request ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
         setLeaveRequests(prev => prev.filter(l => l._id !== id));
         
+         const socket = getSocket();
+    socket.emit("LeaveAprove", {
+      senderId: userData._id,
+      role: userData.role,
+      message: `📅 Leave request: ${action}`,
+    });
         // Refresh data to update progress bars
         await fetchMyLeaves();
         if (activeTab === 'report') {

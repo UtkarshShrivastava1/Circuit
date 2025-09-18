@@ -10,7 +10,7 @@ export default function CreateTaskForm({
   projectName,
   currentUser,
   onTaskCreated,
-  socket,
+  socket, 
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

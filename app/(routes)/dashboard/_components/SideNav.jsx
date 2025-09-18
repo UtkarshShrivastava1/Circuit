@@ -177,7 +177,7 @@ function SideNav({ setIsMobileSidebarOpen }) {
 
       // Example: Only increment Manage Tasks notifications
       setNotifications((prev) => ({
-        ...prev,
+       notif, ...prev,
         "/dashboard/manage-tasks": (prev["/dashboard/manage-tasks"] || 0) + 1,
       }));
     });
@@ -239,7 +239,7 @@ function SideNav({ setIsMobileSidebarOpen }) {
   };
 
   return (
-    <nav className="h-full min-h-screen flex flex-col p-4 border bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
+    <nav className="h-full min-h-screen overflow-auto flex flex-col p-4 border bg-white dark:bg-slate-950 shadow-sm">
       {/* Logo */}
       <div className="py-4 mb-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3 ml-3">
