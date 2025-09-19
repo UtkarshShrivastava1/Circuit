@@ -155,7 +155,7 @@ export default function TaskDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 rounded-xl bg-white dark:bg-slate-900 shadow-md sm:p-8 sm:mt-6">
-      <ToastContainer
+      {/* <ToastContainer
         position="top-right"
         autoClose={3000}
         hideProgressBar
@@ -165,7 +165,7 @@ export default function TaskDetailPage() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-      />
+      /> */}
 
       <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white break-words">{task.title}</h1>
 

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {io} from 'socket.io-client'
 
@@ -438,7 +438,7 @@ export default function CreateTaskForm({
       </form>
 
       {/* Toast Container with responsive positioning */}
-      <ToastContainer
+      {/* <ToastContainer
         position="top-right"
         autoClose={5000}
         hideProgressBar={false}
@@ -449,7 +449,7 @@ export default function CreateTaskForm({
         draggable
         pauseOnHover
         className="!mt-16 sm:!mt-0"
-      />
+      /> */}
     </div>
   );
 }
