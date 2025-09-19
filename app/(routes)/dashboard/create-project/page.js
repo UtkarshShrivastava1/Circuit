@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -109,9 +109,25 @@ const CreateProject = () => {
     }
   };
 
+
+
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+
+      // Validate project name
+  const validateProjectName = (name) => {
+    const regex = /^[a-zA-Z0-9-_]+$/;
+    return regex.test(name);
+  };
+
+
+   // Validate dates
+  const validateDates = (startDate, endDate) => {
+    return new Date(startDate) <= new Date(endDate);
   };
 
   const handleAddParticipant = () => {
@@ -150,6 +166,22 @@ const CreateProject = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // console.log('formData : ',formData);
+
+     if (!validateProjectName(formData.projectName)) {
+      setError(
+        "Project name can only contain letters, numbers, dashes (-), or underscores (_). No spaces allowed."
+      );
+      setLoading(false);
+      return;
+    }
+
+      if (!validateDates(formData.startDate, formData.endDate)) {
+      setError("End date cannot be earlier than the start date.");
+      setLoading(false);
+      return;
+    }
+
+
     if (formData.projectName.length < 3) {
       toast.error('Project name must be at least 3 characters long.');
       return;
