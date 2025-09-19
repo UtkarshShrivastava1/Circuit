@@ -3,14 +3,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {io} from 'socket.io-client'
 
 export default function CreateTaskForm({
   projectId,
   projectName,
   currentUser,
   onTaskCreated,
-  socket, 
+  socket,
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -103,91 +102,87 @@ export default function CreateTaskForm({
     setChecklist(checklist.filter((_, i) => i !== index));
   }
 
- 
   async function handleSubmit(e) {
-  e.preventDefault();
-  setError('');
-  if (!title.trim() || !description.trim()) {
-    setError('Please fill in both title and description.');
-    return;
-  }
-
-  if (memberIds.length === 0) {
-    setError('Please select at least one assignee.');
-    return;
-  }
-
-  const token = localStorage.getItem('token');
-  if (!token) return router.push('/login');
-
-  const SOCKET_URL =
-    typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
-      ? process.env.NEXT_PUBLIC_SOCKET_URL
-      : window?.location?.origin || "";
-
-  const socket = io(SOCKET_URL);
-
-  setSubmitting(true);
-  try {
-    const payload = {
-      title: title.trim(),
-      description: description.trim(),
-      projectId,
-      projectName,
-      userId: currentUser._id,
-      assignees: memberIds.map(id => ({ user: id, state: 'assigned' })), // ✅ use memberIds
-      priority,
-      estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
-      ...(dueDate && { dueDate: new Date(dueDate) }),
-      checklist: checklist.map(item => ({
-        item: item.item,
-        isCompleted: item.isCompleted,
-      })),
-    };
-
-    console.log("task payload :", payload);
-
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error('Failed to create task');
-
-    const newTask = await res.json();
-
-    // 🔔 Real-time notifications for each assignee
-    memberIds.forEach(userId => {
-      socket.emit('taskCreated', {
-        senderId: currentUser._id,
-        receiverId: userId,
-        message: `New task assigned: "${title}" in project ${projectName}`,
-        taskId: newTask._id,
+    e.preventDefault();
+    setError("");
+    if (!title.trim() || !description.trim()) {
+      setError("Please fill in both title and description.");
+      return;
+    }
+    if (assigneeIds.length === 0 && memberIds.length === 0) {
+      setError("Please select at least one assignee.");
+      return;
+    }
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return router.push("/login");
+    setSubmitting(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        projectId,
+        projectName,
+        userId: currentUser._id,
+        assignees: [...new Set([...assigneeIds, ...memberIds])].map((id) => ({
+          user: id,
+          state: "assigned",
+        })),
+        priority,
+        estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
+        ...(dueDate && { dueDate: new Date(dueDate) }),
+        checklist: checklist.map((item) => ({
+          item: item.item,
+          isCompleted: item.isCompleted,
+        })),
+      };
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       });
-    });
+      if (!res.ok) throw new Error("Failed to create task");
+      const newTask = await res.json();
 
-    toast.success('Task created successfully!');
-    setTitle('');
-    setDescription('');
-    setPriority('medium');
-    setEstimatedHours('');
-    setDueDate('');
-    setMemberIds([]);   // ✅ reset selected members
-    setChecklist([]);
-    onTaskCreated?.();
-  } catch (err) {
-    console.error(err);
-    setError(err.message);
-    toast.error(err.message || 'Failed to create task');
-  } finally {
-    setSubmitting(false);
+      // Send notifications safely
+      const notificationPromises = assigneeIds.map(async (userId) => {
+        try {
+          await sendNotification(userId, {
+            senderId: currentUser._id,
+            receiverId: userId,
+            message: `📝 New task assigned: "${title}" in project "${projectName}"`,
+            taskId: newTask._id,
+            projectId: projectId,
+            type: "task_assigned",
+            createdAt: new Date(),
+          });
+        } catch (notifError) {
+          console.warn("Failed to send notification:", notifError);
+        }
+      });
+
+      // Wait for notifications but don't let them block the success flow
+      Promise.allSettled(notificationPromises);
+      toast.success("Task created successfully!");
+      setTitle("");
+      setDescription("");
+      setPriority("medium");
+      setEstimatedHours("");
+      setDueDate("");
+      setAssigneeIds([]);
+      setMemberIds([]);
+      setChecklist([]);
+      onTaskCreated?.();
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message || "Failed to create task");
+    } finally {
+      setSubmitting(false);
+    }
   }
-}
-
 
   // --- UI Section ---
   return (
