@@ -41,7 +41,7 @@ export default function DashboardHeader() {
         const res = await axios.get("/api/auth/session");
         if (!mounted) return;
         if (res.status === 200) setUserData(res.data);
-        console.log(res.data);
+        // console.log(res.data);
       } catch (error) {
         console.log("Session error:", error);
         setUserData(null);
