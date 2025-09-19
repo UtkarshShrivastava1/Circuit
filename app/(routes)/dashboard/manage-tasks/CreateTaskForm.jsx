@@ -150,7 +150,7 @@ export default function CreateTaskForm({
       // Send notifications safely
       const notificationPromises = assigneeIds.map(async (userId) => {
         try {
-          await sendNotification(userId, {
+           sendNotification(userId, {
             senderId: currentUser._id,
             receiverId: userId,
             message: `📝 New task assigned: "${title}" in project "${projectName}"`,
