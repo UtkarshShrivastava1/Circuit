@@ -4,6 +4,17 @@
     { "src": "package.json", "use": "@vercel/next" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/" }
+    {
+      "src": "/api/socket.io",
+      "dest": "/api/socket.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
   ]
 }
