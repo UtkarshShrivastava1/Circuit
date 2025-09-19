@@ -1,3 +1,4 @@
+// attendance / page.jsx
 'use client';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -463,13 +464,13 @@ const handleMarkAttendance = async () => {
             </div>
             {userRole === 'admin' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
+                {/* <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
                 <input
                   type="text"
                   value={filters.userId}
                   onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
                   className="border border-gray-300 dark:border-gray-600 p-2 rounded text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-300"
-                />
+                /> */}
               </div>
             )}
             <div className="flex items-end gap-2">
@@ -532,3 +533,7 @@ const handleMarkAttendance = async () => {
     </div>
   );
 }
+
+
+
+
