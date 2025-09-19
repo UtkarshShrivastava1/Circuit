@@ -40,7 +40,7 @@ export default function RootLayout({ children }) {
         </ThemeProvider>
          <ToastContainer
           position="top-right"
-          autoClose={4000}
+          autoClose={2000}
           hideProgressBar={false}
           newestOnTop={false}
           closeOnClick
@@ -48,7 +48,7 @@ export default function RootLayout({ children }) {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="colored"
+          theme="light"
         />
       </body>
     </html>

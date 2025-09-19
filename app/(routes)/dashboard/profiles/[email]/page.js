@@ -672,11 +672,11 @@ export default function UserProfile() {
           </div>
         </CardFooter>
       </Card>
-      <ToastContainer
+      {/* <ToastContainer
         position="bottom-right"
         autoClose={5000}
         theme="colored"
-      />
+      /> */}
     </div>
   );
 }
