@@ -1,3 +1,5 @@
+// ye mark vala route hai mark/routes.js
+
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Attendance from "@/app/models/Attendance";

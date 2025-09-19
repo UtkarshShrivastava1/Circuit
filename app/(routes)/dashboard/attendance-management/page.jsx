@@ -1,8 +1,9 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { format } from "date-fns";
-import * as XLSX from "xlsx";
+// attendance / page.jsx
+'use client';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 import {io} from 'socket.io-client'
 
 export default function AttendancePage() {
@@ -469,8 +470,8 @@ export default function AttendancePage() {
             </div>
             {userRole === "admin" && (
               <div>
-                {/* <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User</label> */}
-                {/* <input
+                {/* <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
+                <input
                   type="text"
                   value={filters.userId}
                   onChange={(e) =>
@@ -558,3 +559,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+
+
+
