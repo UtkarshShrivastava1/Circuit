@@ -6,14 +6,17 @@ import { verifyAuth } from "@/lib/auth";
 
 export async function GET(request, { params }) {
   await dbConnect();
-  
+
   const projectName = params.projectName;
 
   // Check if the param looks like an ObjectId
-  if (mongoose.Types.ObjectId.isValid(projectName)) { 
+  if (mongoose.Types.ObjectId.isValid(projectName)) {
     const project = await Project.findById(projectName);
     if (!project) {
-      return NextResponse.json({ message: "Not found (by _id)" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Not found (by _id)" },
+        { status: 404 }
+      );
     }
     return NextResponse.json(project);
   }
@@ -21,7 +24,10 @@ export async function GET(request, { params }) {
   // Otherwise, treat as string slug (projectName)
   const project = await Project.findOne({ projectName });
   if (!project) {
-    return NextResponse.json({ message: "Not found (by projectName)" }, { status: 404 });
+    return NextResponse.json(
+      { message: "Not found (by projectName)" },
+      { status: 404 }
+    );
   }
   return NextResponse.json(project);
 }
@@ -42,28 +48,28 @@ export async function PUT(req, { params }) {
         projectDomain: data.projectDomain,
         startDate: data.startDate,
         endDate: data.endDate,
-        participants: data.participants // ✅ Always replace with latest list
+        participants: data.participants, // ✅ Always replace with latest list
       },
       { new: true }
     );
 
     if (!updatedProject) {
-      return new Response(
-        JSON.stringify({ message: "Project not found" }),
+      return NextResponse.json(
+        { message: "Project not found" },
         { status: 404 }
       );
     }
 
     return new Response(JSON.stringify(updatedProject), { status: 200 });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ message: err.message }),
-      { status: 500 }
-    );
+    console.error("Error updating project:", err);
+    return new Response(JSON.stringify({ message: "Internal Server Error" }), {
+      status: 500,
+    });
   }
 }
 
-//Delete the project 
+//Delete the project
 export async function DELETE(req, { params }) {
   await dbConnect();
 
@@ -84,7 +90,10 @@ export async function DELETE(req, { params }) {
 
     const { projectName } = params;
     if (!projectName) {
-      return NextResponse.json({ error: "Project name is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Project name is required" },
+        { status: 400 }
+      );
     }
 
     const project = await Project.findOne({ projectName });
@@ -94,7 +103,10 @@ export async function DELETE(req, { params }) {
 
     // Optional: Only admin or project manager can delete
     if (authUser.role !== "admin" && !project.manager.equals(authUser.id)) {
-      return NextResponse.json({ error: "You do not have permission to delete this project" }, { status: 403 });
+      return NextResponse.json(
+        { error: "You do not have permission to delete this project" },
+        { status: 403 }
+      );
     }
 
     await Project.findOneAndDelete({ projectName });
@@ -102,6 +114,9 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ message: "Project deleted successfully" });
   } catch (error) {
     console.error("Delete project error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

@@ -15,7 +15,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import {
   Command,
   CommandInput,
@@ -59,9 +63,11 @@ const UpdateProject = () => {
         const userData = await sessionRes.json();
         setCurrentUserRole(userData.role);
 
-        const projectName = pathname.split("/")[3];
+        const projectSlug = pathname.split("/")[3];
 
-        const projectRes = await fetch(`/api/projects/${projectName}`);
+        const projectRes = await fetch(
+          `/api/projects/${encodeURIComponent(projectSlug)}`
+        );
         if (!projectRes.ok) throw new Error("Project not found");
         const projectData = await projectRes.json();
 
@@ -69,14 +75,12 @@ const UpdateProject = () => {
           projectName: projectData.projectName,
           projectState: projectData.projectState,
           projectDomain: projectData.projectDomain,
-          startDate: projectData.startDate ? projectData.startDate.split("T")[0] : "",
+          startDate: projectData.startDate
+            ? projectData.startDate.split("T")[0]
+            : "",
           endDate: projectData.endDate ? projectData.endDate.split("T")[0] : "",
         });
         setParticipants(projectData.participants || []);
-        // console.log('projectData.participants',projectData.participants)
-
-
-        // console.log('participants : ' , projectData.participants);
 
         const usersRes = await fetch("/api/user");
         if (!usersRes.ok) throw new Error("Failed fetching users");
@@ -130,21 +134,16 @@ const UpdateProject = () => {
     }
 
     const newEntry = {
-    email: selectedUser,
-    roleInProject: selectedRole,
-    responsibility: selectedResponsibility,
-    profileImage: selectedUserData?.profileImgUrl,
-    userRole: selectedUserData?.role,
-    username: selectedUserData?.name,
-    userId: selectedUserData // or build object { email, name, _id }
-  };
-
+      email: selectedUser,
+      roleInProject: selectedRole,
+      responsibility: selectedResponsibility,
+      profileImage: selectedUserData?.profileImgUrl,
+      userRole: selectedUserData?.role,
+      username: selectedUserData?.name,
+      userId: selectedUserData,
+    };
 
     setParticipants((prev) => [...prev, newEntry]);
-
-    // console.log("Participant : ",participants);
-
-
 
     setSelectedUser(null);
     setSelectedUserData(null);
@@ -167,50 +166,56 @@ const UpdateProject = () => {
       return;
     }
 
-   
-
-
-
-    // if (projectManagerCount !== 1) {
-    //   setError("There must be exactly one project manager.");
-    //   setLoading(false);
-    //   return;
-    // }
-
-
-    // console.log(" Participants: ", participants);
-
-
-    // const projectMemberCount = participants.filter(
-    //   (p) => p.responsibility === "project-member"
-    // ).length;
-
-    // console.log(projectMemberCount )
-
-    // if (projectMemberCount < 1) {
-    //   setError("There must be at least one project member.");
-    //   setLoading(false);
-    //   return;
-    // }
-
     try {
-      const projectName = formData.projectName.toLowerCase();
+      // Use the slug from the URL (same one used to GET the project)
+      const projectSlug = pathname.split("/")[3];
+      if (!projectSlug) {
+        throw new Error("Project identifier not found in URL");
+      }
 
-      const res = await fetch(`/api/projects/${projectName}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectState: formData.projectState,
-          projectDomain: formData.projectDomain,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          participants,
-        }),
-      });
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(projectSlug)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            projectState: formData.projectState,
+            projectDomain: formData.projectDomain,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            participants,
+          }),
+        }
+      );
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to update project");
+        // read any JSON error, but also log raw body for debugging 404s
+        let errorText = "";
+        try {
+          const json = await res.json();
+          errorText = json.message || json.error || JSON.stringify(json);
+        } catch (parseErr) {
+          errorText = await res
+            .text()
+            .catch(() => "Failed to parse error response");
+        }
+        const status = res.status;
+        console.error("Project update failed", { status, errorText });
+        if (status === 404) {
+          throw new Error(
+            "API route not found (404). Verify the backend route at /api/projects/[projectName] supports PUT."
+          );
+        } else if (status === 401 || status === 403) {
+          throw new Error("Unauthorized. Please login and try again.");
+        } else {
+          throw new Error(errorText || "Failed to update project");
+        }
       }
 
       toast.success("Project updated successfully!");
@@ -218,12 +223,18 @@ const UpdateProject = () => {
     } catch (err) {
       setError(err.message);
       toast.error(`Error updating project: ${err.message}`);
+      console.error("handleSubmit error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!currentUserRole) return <div className="text-center"><Loading message="Loading..."/></div>;
+  if (!currentUserRole)
+    return (
+      <div className="text-center">
+        <Loading message="Loading..." />
+      </div>
+    );
 
   const selectedUserObj = selectedUser
     ? allUsers.find((u) => u.email === selectedUser)
@@ -317,7 +328,10 @@ const UpdateProject = () => {
                 <div className="flex w-full gap-4">
                   <div className="space-y-1 w-full pt-2 flex flex-col">
                     <Label htmlFor="selectUser">Select User</Label>
-                    <Popover open={userPickerOpen} onOpenChange={setUserPickerOpen}>
+                    <Popover
+                      open={userPickerOpen}
+                      onOpenChange={setUserPickerOpen}
+                    >
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -326,7 +340,9 @@ const UpdateProject = () => {
                           className="justify-between w-full"
                         >
                           {selectedUserObj
-                            ? `${selectedUserObj.name ?? "Unknown User"} (${selectedUserObj.email})`
+                            ? `${selectedUserObj.name ?? "Unknown User"} (${
+                                selectedUserObj.email
+                              })`
                             : "Select user..."}
                           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -342,9 +358,14 @@ const UpdateProject = () => {
                                 .filter(
                                   (user) =>
                                     user.email.toLowerCase().includes(val) ||
-                                    (user.name ?? "").toLowerCase().includes(val)
+                                    (user.name ?? "")
+                                      .toLowerCase()
+                                      .includes(val)
                                 )
-                                .map((user) => ({ value: user.email, label: user.email }));
+                                .map((user) => ({
+                                  value: user.email,
+                                  label: user.email,
+                                }));
                               setEmailOptions(opts);
                             }}
                           />
@@ -353,41 +374,47 @@ const UpdateProject = () => {
                             <CommandGroup>
                               {(emailOptions.length
                                 ? emailOptions
-                                : allUsers.map((u) => ({ value: u.email, label: u.email }))).map(
-                                (option) => (
-                                  <CommandItem
-                                    key={option.value}
-                                    value={option.value}
-                                    onSelect={() => handleSelect(option.value)}
-                                  >
-                                    <div className="flex items-center space-x-4">
-                                      <Image
-                                        src={
-                                          allUsers.find((u) => u.email === option.value)?.profileImgUrl ||
-                                          "/user.png"
-                                        }
-                                        alt="User Avatar"
-                                        width={40}
-                                        height={40}
-                                        className="w-10 h-10 rounded-full object-cover"
-                                      />
-                                      <div className="flex-1">
-                                        <div className="font-semibold">
-                                          {allUsers.find((u) => u.email === option.value)?.name ||
-                                            "Unknown User"}
-                                        </div>
-                                        <div className="text-sm text-gray-600">
-                                          {allUsers.find((u) => u.email === option.value)?.email ||
-                                            option.value}
-                                          <br />
-                                          {allUsers.find((u) => u.email === option.value)?.role ||
-                                            "No Role"}
-                                        </div>
+                                : allUsers.map((u) => ({
+                                    value: u.email,
+                                    label: u.email,
+                                  }))
+                              ).map((option) => (
+                                <CommandItem
+                                  key={option.value}
+                                  value={option.value}
+                                  onSelect={() => handleSelect(option.value)}
+                                >
+                                  <div className="flex items-center space-x-4">
+                                    <Image
+                                      src={
+                                        allUsers.find(
+                                          (u) => u.email === option.value
+                                        )?.profileImgUrl || "/user.png"
+                                      }
+                                      alt="User Avatar"
+                                      width={40}
+                                      height={40}
+                                      className="w-10 h-10 rounded-full object-cover"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-semibold">
+                                        {allUsers.find(
+                                          (u) => u.email === option.value
+                                        )?.name || "Unknown User"}
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        {allUsers.find(
+                                          (u) => u.email === option.value
+                                        )?.email || option.value}
+                                        <br />
+                                        {allUsers.find(
+                                          (u) => u.email === option.value
+                                        )?.role || "No Role"}
                                       </div>
                                     </div>
-                                  </CommandItem>
-                                )
-                              )}
+                                  </div>
+                                </CommandItem>
+                              ))}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -406,11 +433,15 @@ const UpdateProject = () => {
                       className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
                     >
                       <option value="">Select Role</option>
-                      <option value="project-manager"
-                               disabled={participants.some(p => p.roleInProject === "project-manager")}>
-                                Project Manager</option>
-                              <option value="project-member">Project Member</option>
-                     
+                      <option
+                        value="project-manager"
+                        disabled={participants.some(
+                          (p) => p.roleInProject === "project-manager"
+                        )}
+                      >
+                        Project Manager
+                      </option>
+                      <option value="project-member">Project Member</option>
                     </select>
                   </div>
                 </div>
@@ -418,26 +449,27 @@ const UpdateProject = () => {
                 <div className="flex w-full gap-4">
                   <div className="space-y-1 w-full">
                     <Label htmlFor="responsibility">Responsibility</Label>
-                         <select
-                              id="responsibility"
-                              value={selectedResponsibility}
-                              onChange={(e) => setSelectedResponsibility(e.target.value)}
-                               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
-                            >
-                              <option value="">Select Responsibility</option>
-                               <option value="content">Content</option>
-                               <option value="research">Research</option>
-                               <option value="design">Design</option>
-                               <option value="development">Development</option>
-                               <option value="frontend">Frontend</option>
-                               <option value="backend">Backend</option>
-                               <option value="fullstack">Full Stack</option>
-                               <option value="testing">Testing</option>
-                               <option value="debugging">Debugging</option>
-                               <option value="deployment">Deployment</option>
-                               <option value="maintain">Maintain</option>
-                        </select>
-
+                    <select
+                      id="responsibility"
+                      value={selectedResponsibility}
+                      onChange={(e) =>
+                        setSelectedResponsibility(e.target.value)
+                      }
+                      className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      <option value="">Select Responsibility</option>
+                      <option value="content">Content</option>
+                      <option value="research">Research</option>
+                      <option value="design">Design</option>
+                      <option value="development">Development</option>
+                      <option value="frontend">Frontend</option>
+                      <option value="backend">Backend</option>
+                      <option value="fullstack">Full Stack</option>
+                      <option value="testing">Testing</option>
+                      <option value="debugging">Debugging</option>
+                      <option value="deployment">Deployment</option>
+                      <option value="maintain">Maintain</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -445,7 +477,9 @@ const UpdateProject = () => {
               <Button
                 type="button"
                 onClick={handleAddParticipant}
-                disabled={!selectedUser || !selectedRole || !selectedResponsibility}
+                disabled={
+                  !selectedUser || !selectedRole || !selectedResponsibility
+                }
               >
                 Add Participant
               </Button>
@@ -454,61 +488,61 @@ const UpdateProject = () => {
             <div className="space-y-1">
               <Label>Current Participants</Label>
               <div className="grid grid-cols-1 gap-2">
-               {participants.map((p) => (
-  <Card
-    key={p.email}
-    className="flex flex-col md:flex-row items-center md:items-start gap-4 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-shadow hover:shadow-md"
-  >
-    <CardContent className="flex items-center gap-4 flex-grow p-0">
-      <div className="flex-shrink-0">
-        <Image
-          src={p.profileImage || "/user.png"}
-          alt={`${p.username || p.email}'s profile`}
-          width={48}
-          height={48}
-          className="rounded-full border-2 border-indigo-500 dark:border-indigo-400 object-cover"
-        />
-      </div>
-      <div className="flex flex-col overflow-hidden min-w-0">
-        <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 truncate">
-          {p.username || p.email}
-        </span>
-        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
-          {p.email}
-        </span>
-        {/* <span className="text-xs uppercase tracking-wide text-indigo-600 dark:text-indigo-400 mt-1 truncate">
-          {p.userRole || "No Role"}
-        </span> */}
-        <div className="mt-2 space-y-1">
-          <p className="text-sm text-gray-700 dark:text-indigo-400 mt-1 truncate"> 
-            <strong>Role: </strong> {p.roleInProject}
-          </p>
-          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
-            <strong>Responsibility: </strong> {p.responsibility}
-          </p>
-        </div>
-      </div>
-    </CardContent>
+                {participants.map((p) => (
+                  <Card
+                    key={p.email}
+                    className="flex flex-col md:flex-row items-center md:items-start gap-4 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-shadow hover:shadow-md"
+                  >
+                    <CardContent className="flex items-center gap-4 flex-grow p-0">
+                      <div className="flex-shrink-0">
+                        <Image
+                          src={p.profileImage || "/user.png"}
+                          alt={`${p.username || p.email}'s profile`}
+                          width={48}
+                          height={48}
+                          className="rounded-full border-2 border-indigo-500 dark:border-indigo-400 object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col overflow-hidden min-w-0">
+                        <span className="font-semibold text-lg text-gray-900 dark:text-gray-100 truncate">
+                          {p.username || p.email}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                          {p.email}
+                        </span>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-sm text-gray-700 dark:text-indigo-400 mt-1 truncate">
+                            <strong>Role: </strong> {p.roleInProject}
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                            <strong>Responsibility: </strong> {p.responsibility}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
 
-    <CardFooter className="p-0 md:pl-4 flex justify-end md:justify-center w-full md:w-auto">
-      <Button
-        variant="destructive"
-        size="sm"
-        className="px-4 py-1.5 text-sm font-semibold whitespace-nowrap"
-        onClick={() => handleRemoveParticipant(p.email)}
-      >
-        Remove
-      </Button>
-    </CardFooter>
-  </Card>
-))}
-
+                    <CardFooter className="p-0 md:pl-4 flex justify-end md:justify-center w-full md:w-auto">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="px-4 py-1.5 text-sm font-semibold whitespace-nowrap"
+                        onClick={() => handleRemoveParticipant(p.email)}
+                      >
+                        Remove
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
               </div>
             </div>
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4 w-full">
-            {error && <div className="text-red-700 w-full bg-red-100 rounded p-2">{error}</div>}
+            {error && (
+              <div className="text-red-700 w-full bg-red-100 rounded p-2">
+                {error}
+              </div>
+            )}
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Updating..." : "Update Project"}
             </Button>

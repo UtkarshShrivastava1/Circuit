@@ -1,16 +1,18 @@
-// attendance / page.jsx
-'use client';
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { format } from 'date-fns';
-import * as XLSX from 'xlsx';
-<<<<<<< Updated upstream
-// import {io} from 'socket.io-client'
-import { Button } from '@/components/ui/button';
+"use client";
 
-=======
-import {io} from 'socket.io-client'
->>>>>>> Stashed changes
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { format } from "date-fns";
+import * as XLSX from "xlsx";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+/**
+ * AttendancePage
+ * - No socket.io / webpush dependencies
+ * - Local notifications via toast + in-page messages
+ * - Prevents rapid duplicate attendance requests
+ */
 
 export default function AttendancePage() {
   const [userRole, setUserRole] = useState(null);
@@ -24,9 +26,7 @@ export default function AttendancePage() {
   const [isMarking, setIsMarking] = useState(false);
 
   // Approval/report state
-  const [activeTab, setActiveTab] = useState(
-    userRole === "admin" ? "approve" : "mark"
-  );
+  const [activeTab, setActiveTab] = useState("mark");
   const [requests, setRequests] = useState([]);
   const [summary, setSummary] = useState({
     present: 0,
@@ -41,148 +41,211 @@ export default function AttendancePage() {
     userId: "",
   });
 
-  // Fetch user role on mount
+  // Prevent duplicate requests
+  const [pendingRequest, setPendingRequest] = useState(null);
+
   useEffect(() => {
     setIsLoading(true);
-    fetch("/api/auth/session")
-      .then((res) => res.json())
-      .then((data) => {
-        setUserRole(data.role);
+    async function bootstrap() {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (!res.ok) throw new Error("Not authenticated");
+        const data = await res.json();
+        setUserRole(data.role || null);
         setActiveTab(data.role === "admin" ? "approve" : "mark");
-        setIsLoading(false);
-      })
-      .catch(() => {
+      } catch (err) {
         setUserRole(null);
+      } finally {
         setIsLoading(false);
-      });
+      }
+    }
+    bootstrap();
   }, []);
 
   // Fetch latest attendance (self)
   const fetchMyAttendance = async () => {
     try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const res = await fetch("/api/attendance/my-latest", {
-        headers: { authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: token ? { authorization: `Bearer ${token}` } : {},
       });
-      if (res.ok) {
-        const data = await res.json();
-        setAttendanceStatus(data.approvalStatus);
-        setLastDate(data.date);
-        if (data.workMode) setWorkMode(data.workMode);
+      if (!res.ok) {
+        // clear local attendance view on 401/404
+        setAttendanceStatus(null);
+        setLastDate(null);
+        return;
       }
+      const data = await res.json();
+      setAttendanceStatus(data.approvalStatus || null);
+      setLastDate(data.date || null);
+      if (data.workMode) setWorkMode(data.workMode);
     } catch (error) {
-      console.error(error);
+      console.error("fetchMyAttendance error:", error);
     }
   };
 
-// Add this at the top of your component (after other state declarations)
-const [pendingRequest, setPendingRequest] = useState(null);
+  // Mark attendance (debounced / guarded)
+  const handleMarkAttendance = async () => {
+    if (isMarking || pendingRequest) return;
 
-// Replace the handleMarkAttendance function
-const handleMarkAttendance = async () => {
-  // Prevent multiple simultaneous requests
-  if (isMarking || pendingRequest) return;
-  
-  setIsMarking(true);
-  setMessage(""); // Clear previous messages
-  
-  const requestPromise = fetch("/api/attendance/mark", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-    body: JSON.stringify({ status: "present", workMode }),
-  });
-  
-  setPendingRequest(requestPromise);
-  
-  try {
-    const res = await requestPromise;
-    const data = await res.json();
-    if (res.ok) {
-      setMessage(`✅ Attendance marked (${workMode})!`);
-      await fetchMyAttendance();
-    } else {
-      setMessage(data.error || "❌ Failed to mark attendance");
+    setIsMarking(true);
+    setMessage("");
+    setPendingRequest(true);
+
+    try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch("/api/attendance/mark", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: "present", workMode }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setMessage(`✅ Attendance marked (${workMode})`);
+        toast.success("Attendance marked successfully");
+        await fetchMyAttendance();
+        // If this user is admin/manager, refresh admin lists
+        if (userRole !== "member") {
+          await fetchPending();
+          await fetchSummary();
+        }
+      } else {
+        const errMsg =
+          data.error || data.message || "Failed to mark attendance";
+        setMessage(`❌ ${errMsg}`);
+        toast.error(errMsg);
+      }
+    } catch (err) {
+      console.error("handleMarkAttendance error:", err);
+      setMessage("⚠️ Error marking attendance");
+      toast.error("Error marking attendance");
+    } finally {
+      // short delay to avoid rapid repeated clicks
+      setTimeout(() => {
+        setIsMarking(false);
+        setPendingRequest(null);
+      }, 1000);
     }
-  } catch (error) {
-    setMessage("⚠️ Error marking attendance");
-  } finally {
-    // Add delay to prevent rapid resubmission
-    setTimeout(() => {
-      setIsMarking(false);
-      setPendingRequest(null);
-    }, 2000);
-  }
-};
-  // ---------- For approval/report (admin/manager) ----------
+  };
+
+  // ---------- Admin/Manager functions ----------
   const fetchPending = async () => {
-    const res = await fetch("/api/attendance/pending", {
-      headers: { authorization: `Bearer ${localStorage.getItem("token")}` },
-    });
-    const data = await res.json();
-    if (res.ok) setRequests(data.pending);
+    try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch("/api/attendance/pending", {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        setRequests([]);
+        return;
+      }
+      const data = await res.json();
+      setRequests(data.pending || []);
+    } catch (err) {
+      console.error("fetchPending error:", err);
+      setRequests([]);
+    }
   };
 
   const handleAction = async (id, action) => {
-    const res = await fetch(`/api/attendance/approve/${id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({ action }),
-    });
-    if (res.ok) {
-      setRequests(requests.filter((r) => r._id !== id));
-      fetchSummary();
+    try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch(`/api/attendance/approve/${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || err.message || "Action failed");
+        return;
+      }
+      toast.success(action === "approve" ? "Approved" : "Rejected");
+      setRequests((prev) => prev.filter((r) => r._id !== id));
+      await fetchSummary();
+    } catch (err) {
+      console.error("handleAction error:", err);
+      toast.error("Action failed");
     }
   };
 
   const fetchSummary = async () => {
     try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const res = await fetch("/api/attendance/today", {
-        headers: { authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: token ? { authorization: `Bearer ${token}` } : {},
       });
+      if (!res.ok) {
+        setSummary({ present: 0, pending: 0, rejected: 0 });
+        return;
+      }
       const data = await res.json();
-      if (res.ok) setSummary(data);
+      setSummary({
+        present: data.present || 0,
+        pending: data.pending || 0,
+        rejected: data.rejected || 0,
+      });
     } catch (err) {
-      console.error("Error fetching summary", err);
+      console.error("fetchSummary error:", err);
     }
   };
 
   const fetchReport = async () => {
     try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const params = {};
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.status) params.status = filters.status;
       if (filters.userId) params.userId = filters.userId;
+
       const res = await axios.get("/api/attendance/report", {
         params,
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      setReport(res.data);
+      setReport(res.data || []);
     } catch (err) {
-      console.error("Error fetching report", err);
+      console.error("fetchReport error:", err);
+      setReport([]);
+      toast.error("Failed to fetch report");
     }
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      report.map((r) => ({
-        User: r.userId?.name || "",
-        Date: format(new Date(r.date), "dd-MM-yyyy"),
-        "Work Mode": r.workMode || "-",
-        "Check In": r.checkIn || "-",
-        "Check Out": r.checkOut || "-",
-        Status: r.approvalStatus || "pending",
-        "Approved By": r.approvedBy?.name || "-",
-      }))
-    );
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Report");
-    XLSX.writeFile(workbook, "attendance_report.xlsx");
+    try {
+      const worksheet = XLSX.utils.json_to_sheet(
+        report.map((r) => ({
+          User: r.userId?.name || "",
+          Date: r.date ? format(new Date(r.date), "dd-MM-yyyy") : "",
+          "Work Mode": r.workMode || "-",
+          "Check In": r.checkIn || "-",
+          "Check Out": r.checkOut || "-",
+          Status: r.approvalStatus || "pending",
+          "Approved By": r.approvedBy?.name || "-",
+        }))
+      );
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Report");
+      XLSX.writeFile(workbook, "attendance_report.xlsx");
+      toast.success("Exported report to Excel");
+    } catch (err) {
+      console.error("exportToExcel error:", err);
+      toast.error("Failed to export");
+    }
   };
 
   useEffect(() => {
@@ -192,6 +255,7 @@ const handleMarkAttendance = async () => {
       fetchSummary();
     }
     if (activeTab === "report") fetchReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTab,
     filters.startDate,
@@ -202,15 +266,16 @@ const handleMarkAttendance = async () => {
 
   const StatusBadge = ({ status }) => {
     if (!status) return null;
-    let color =
-      status === "Approved"
+    const normalized = String(status).toLowerCase();
+    let colorClass =
+      normalized === "approved"
         ? "bg-green-100 text-green-700 border-green-400 dark:bg-green-900/20 dark:text-green-300 dark:border-green-500"
-        : status === "Rejected"
+        : normalized === "rejected"
         ? "bg-red-100 text-red-700 border-red-400 dark:bg-red-900/20 dark:text-red-300 dark:border-red-500"
         : "bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-500";
     return (
       <span
-        className={`px-3 py-1 text-sm rounded-full border ${color} inline-block`}
+        className={`px-3 py-1 text-sm rounded-full border ${colorClass} inline-block`}
       >
         {status}
       </span>
@@ -277,6 +342,7 @@ const handleMarkAttendance = async () => {
             <h2 className="text-xl font-bold mb-4 text-center text-gray-900 dark:text-gray-200">
               📌 Mark Attendance
             </h2>
+
             <div className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4 mb-4">
               <label className="flex items-center gap-2 cursor-pointer text-gray-700 dark:text-gray-300">
                 <input
@@ -305,21 +371,19 @@ const handleMarkAttendance = async () => {
                 </span>
               </label>
             </div>
-            <Button
+
+            <button
               onClick={handleMarkAttendance}
               disabled={isMarking || pendingRequest !== null}
-<<<<<<< Updated upstream
-              className={`lg:w-[400px] w-auto px-auto py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
-=======
-              className={`w-[500px] py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
->>>>>>> Stashed changes
+              className={`w-[400px] py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
                 isMarking
                   ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
               }`}
             >
               {isMarking ? "Marking..." : "Mark Present"}
-            </Button>
+            </button>
+
             {message && (
               <p
                 className={`mt-3 text-center font-medium ${
@@ -333,17 +397,13 @@ const handleMarkAttendance = async () => {
                 {message}
               </p>
             )}
+
             {(attendanceStatus || lastDate || workMode) && (
               <div className="mt-4 text-center space-y-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Latest Attendance Status
                 </p>
                 {attendanceStatus && <StatusBadge status={attendanceStatus} />}
-                {/* {lastDate && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Marked at: <span className="text-gray-900 dark:text-gray-300">{new Date(lastDate).toLocaleString()}</span>
-                </p>
-              )} */}
                 {lastDate && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Marked at:{" "}
@@ -352,7 +412,6 @@ const handleMarkAttendance = async () => {
                     </span>
                   </p>
                 )}
-
                 {workMode && (
                   <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mt-1">
                     Mode:{" "}
@@ -396,9 +455,11 @@ const handleMarkAttendance = async () => {
                 </div>
               </div>
             </div>
+
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
               Attendance Requests
             </h2>
+
             {requests.length > 0 ? (
               requests.map((req) => (
                 <div
@@ -419,6 +480,7 @@ const handleMarkAttendance = async () => {
                       </span>
                     </div>
                   </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAction(req._id, "approve")}
@@ -449,6 +511,7 @@ const handleMarkAttendance = async () => {
           <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
             Attendance Report
           </h2>
+
           <div className="flex flex-wrap gap-3 items-center mb-6">
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -463,6 +526,7 @@ const handleMarkAttendance = async () => {
                 className="border border-gray-300 dark:border-gray-600 p-2 rounded text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-300"
               />
             </div>
+
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 End Date
@@ -476,6 +540,7 @@ const handleMarkAttendance = async () => {
                 className="border border-gray-300 dark:border-gray-600 p-2 rounded text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-300"
               />
             </div>
+
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status
@@ -493,19 +558,7 @@ const handleMarkAttendance = async () => {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
-            {userRole === "admin" && (
-              <div>
-                {/* <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
-                <input
-                  type="text"
-                  value={filters.userId}
-                  onChange={(e) =>
-                    setFilters({ ...filters, userId: e.target.value })
-                  }
-                  className="border border-gray-300 dark:border-gray-600 p-2 rounded text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-300"
-                /> */}
-              </div>
-            )}
+
             <div className="flex items-end gap-2">
               <button
                 onClick={fetchReport}
@@ -521,6 +574,7 @@ const handleMarkAttendance = async () => {
               </button>
             </div>
           </div>
+
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 mb-4">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-slate-800">
@@ -553,7 +607,9 @@ const handleMarkAttendance = async () => {
                         {att.userId?.name || "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300">
-                        {format(new Date(att.date), "dd-MM-yyyy")}
+                        {att.date
+                          ? format(new Date(att.date), "dd-MM-yyyy")
+                          : "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300 capitalize">
                         {att.workMode || "-"}
@@ -581,10 +637,9 @@ const handleMarkAttendance = async () => {
           </div>
         </div>
       )}
+
+      {/* simple in-page toast container */}
+      <div />
     </div>
   );
 }
-
-
-
-
