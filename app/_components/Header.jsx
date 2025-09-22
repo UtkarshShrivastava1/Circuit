@@ -23,7 +23,7 @@ export default function Header() {
         setUserData(data);
       } catch (error) {
         console.error("Error fetching user data:", error);
-        console.error("Error fetching session user data and message:", error.message);
+        console.error("Error fetching user data and message:", error.message);
         setUserData(null);
       }
     }

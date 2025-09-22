@@ -15,9 +15,17 @@ import { HiMenuAlt3 } from "react-icons/hi";
 import { Bell } from "lucide-react";
 import axios from "axios";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+// ✅ React Toastify
 import { toast } from "react-toastify";
-import NotificationListener from "./NotificationListener"; // ✅ SSE version
+import { io } from "socket.io-client";
 
+/**
+ * Responsive Dashboard Header
+ * - Avatar shrinks on small screens and shows name/role only on md+ screens
+ * - Notifications have accessible toggle + outside-click close
+ * - Mobile menu keeps using existing Sheet (md:hidden)
+ * - Socket URL taken from NEXT_PUBLIC_SOCKET_URL or falls back to origin
+ */
 export default function DashboardHeader() {
   const [userData, setUserData] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -46,8 +54,40 @@ export default function DashboardHeader() {
     };
   }, []);
 
+  // Socket + notifications
+  useEffect(() => {
+    if (!userData?._id) return;
 
-  
+    // Determine socket url
+    const SOCKET_URL =
+      typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
+        ? process.env.NEXT_PUBLIC_SOCKET_URL
+        : typeof window !== "undefined"
+        ? window.location.origin
+        : "";
+
+    const socket = io(SOCKET_URL);
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to socket:", socket.id);
+      socket.emit("register", userData._id);
+    });
+
+    socket.on("notification", (notif) => {
+      console.log("📢 Notification received:", notif);
+      setNotifications((prev) => [notif, ...prev]); // newest on top
+      setUnreadCount((prev) => prev + 1);
+      toast.info(notif.message, {
+        position: "top-right",
+        autoClose: 4000,
+        theme: "colored",
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [userData]);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -81,9 +121,9 @@ export default function DashboardHeader() {
   return (
     <header className="w-full bg-white dark:bg-slate-950 border-b shadow-sm px-3 py-2 md:py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-        {/* Left: Avatar + name */}
+        {/* Left: Avatar + name (stacked on xs) */}
         <div className="flex items-center gap-3 min-w-0">
-          {/* Mobile hamburger */}
+          {/* Mobile hamburger (visible on small screens) */}
           <div className="md:hidden">
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger asChild>
@@ -109,13 +149,17 @@ export default function DashboardHeader() {
             className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-1 transition-colors"
             title={userData?.name || userData?.email}
           >
-            <Avatar className="flex-shrink-0" style={{ width: "48px", height: "48px" }}>
+            <Avatar
+              className="flex-shrink-0"
+              style={{ width: "48px", height: "48px" }}
+            >
               <AvatarImage src={userData?.profileImgUrl || "/user.png"} />
               <AvatarFallback className="text-sm">
                 {userData?.name?.[0] || userData?.email?.[0] || "?"}
               </AvatarFallback>
             </Avatar>
 
+            {/* Hide text on very small screens, show on sm+ */}
             <div className="hidden sm:flex flex-col overflow-hidden">
               <p className="text-sm md:text-base font-semibold truncate">
                 {userData?.name || userData?.email}
@@ -127,10 +171,12 @@ export default function DashboardHeader() {
           </div>
         </div>
 
-        {/* Middle */}
+        {/* Middle: (Optional) small search/title placeholder (hidden on xs) */}
         <div className="hidden md:flex flex-1 items-center justify-center">
+          {/* put app title or small search bar if needed */}
           <div className="text-sm text-gray-700 dark:text-gray-300 truncate">
-            Welcome back{userData?.name ? `, ${userData.name.split(" ")[0]}` : ""}.
+            Welcome back
+            {userData?.name ? `, ${userData.name.split(" ")[0]}` : ""}.
           </div>
         </div>
 
@@ -174,7 +220,10 @@ export default function DashboardHeader() {
                     </li>
                   ) : (
                     notifications.map((n, i) => (
-                      <li key={i} className="p-3 border-b dark:border-gray-800 text-sm truncate">
+                      <li
+                        key={i}
+                        className="p-3 border-b dark:border-gray-800 text-sm truncate"
+                      >
                         <div className="font-medium">{n.title || "Update"}</div>
                         <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                           {n.message}
@@ -195,6 +244,7 @@ export default function DashboardHeader() {
             </Button>
           </div>
 
+          {/* On very small screens show a compact sign out button/icon */}
           <div className="sm:hidden">
             <Button onClick={handleSignOut} variant="ghost" className="p-2">
               Sign Out

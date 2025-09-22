@@ -3,15 +3,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// import {io} from 'socket.io-client'
-import { sendNotification } from "@/lib/notifications";
 
 export default function CreateTaskForm({
   projectId, 
   projectName,
   currentUser,
   onTaskCreated,
-  socket, 
+  socket,
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -104,7 +102,6 @@ export default function CreateTaskForm({
     setChecklist(checklist.filter((_, i) => i !== index));
   }
 
- 
   async function handleSubmit(e) {
   e.preventDefault();
   setError('');
@@ -182,24 +179,42 @@ export default function CreateTaskForm({
     });
   }
 
-    toast.success('Task created successfully!');
-    setTitle('');
-    setDescription('');
-    setPriority('medium');
-    setEstimatedHours('');
-    setDueDate('');
-    setMemberIds([]);   // ✅ reset selected members
-    setChecklist([]);
-    onTaskCreated?.();
-  } catch (err) {
-    console.error(err);
-    setError(err.message);
-    toast.error(err.message || 'Failed to create task');
-  } finally {
-    setSubmitting(false);
-  }
-}
+      // Send notifications safely
+      const notificationPromises = assigneeIds.map(async (userId) => {
+        try {
+           sendNotification(userId, {
+            senderId: currentUser._id,
+            receiverId: userId,
+            message: `📝 New task assigned: "${title}" in project "${projectName}"`,
+            taskId: newTask._id,
+            projectId: projectId,
+            type: "task_assigned",
+            createdAt: new Date(),
+          });
+        } catch (notifError) {
+          console.warn("Failed to send notification:", notifError);
+        }
+      });
 
+      // Wait for notifications but don't let them block the success flow
+      Promise.allSettled(notificationPromises);
+      toast.success("Task created successfully!");
+      setTitle("");
+      setDescription("");
+      setPriority("medium");
+      setEstimatedHours("");
+      setDueDate("");
+      setAssigneeIds([]);
+      setMemberIds([]);
+      setChecklist([]);
+      onTaskCreated?.();
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message || "Failed to create task");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   // --- UI Section ---
   return (
