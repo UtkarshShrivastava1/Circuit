@@ -470,10 +470,10 @@ const handlePostAnnouncement = async () => {
     return;
   }
 
-  if (!filePost) {
-    toast.error("Please select a file");
-    return;
-  }
+  // if (!filePost) {
+  //   toast.error("Please select a file");
+  //   return;
+  // }
 
   setLoadingUpdate(true);
 
@@ -485,8 +485,12 @@ const handlePostAnnouncement = async () => {
       return;
     }
 
+
+
+    let fileUrl = "No files";
+
     // 1. Upload file first
-    const formData = new FormData();
+   if(filePost){ const formData = new FormData();
     formData.append("file", filePost);
 
     const uploadRes = await fetch("/api/upload", {
@@ -501,7 +505,7 @@ const handlePostAnnouncement = async () => {
 
     const fileUrl = uploadData.url;
     if (!fileUrl) throw new Error("Upload response missing URL");
-
+}
     // 2. Prepare body for announcement
       const body = {
         projectName,
