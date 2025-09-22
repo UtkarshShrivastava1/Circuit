@@ -256,7 +256,7 @@ export default function ProjectDetails() {
         throw new Error(errData.error || "Failed to delete announcement");
       }
       toast.success("Announcement deleted successfully.");
-      setIsModalOpen(false);
+      setIsDeleteModalOpen(false);
       // Refresh announcements
       refreshAnnouncements();
     } catch (err) {
