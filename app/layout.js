@@ -5,6 +5,7 @@ import { ThemeProvider } from "./_components/theme-provider";
 import NotificationPermission from "./_components/NotificationPermission";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import PushNotificationManager from "./(routes)/dashboard/_components/NotificationListener";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -35,7 +36,9 @@ export default function RootLayout({ children }) {
           enableSystem
           disableTransitionOnChange
         >
+          <PushNotificationManager /> 
           <NotificationPermission />
+        
           {children}
         </ThemeProvider>
          <ToastContainer

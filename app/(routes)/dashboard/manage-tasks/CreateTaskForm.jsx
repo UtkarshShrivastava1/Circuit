@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {io} from 'socket.io-client'
+// import {io} from 'socket.io-client'
+import { sendNotification } from "@/lib/notifications";
 
 export default function CreateTaskForm({
-  projectId,
+  projectId, 
   projectName,
   currentUser,
   onTaskCreated,
@@ -66,11 +67,11 @@ export default function CreateTaskForm({
   }
 
   // Send notification function
-  function sendNotification(userId, notificationData) {
-    if (socket && typeof socket.emit === "function") {
-      socket.emit("notification", notificationData);
-    }
-  }
+  // function sendNotification(userId, notificationData) {
+  //   if (socket && typeof socket.emit === "function") {
+  //     socket.emit("notification", notificationData);
+  //   }
+  // }
 
   useEffect(() => {
     async function fetchParticipants() {
@@ -120,12 +121,12 @@ export default function CreateTaskForm({
   const token = localStorage.getItem('token');
   if (!token) return router.push('/login');
 
-  const SOCKET_URL =
-    typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
-      ? process.env.NEXT_PUBLIC_SOCKET_URL
-      : window?.location?.origin || "";
+  // const SOCKET_URL =
+  //   typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
+  //     ? process.env.NEXT_PUBLIC_SOCKET_URL
+  //     : window?.location?.origin || "";
 
-  const socket = io(SOCKET_URL);
+  // const socket = io(SOCKET_URL);
 
   setSubmitting(true);
   try {
@@ -161,14 +162,25 @@ export default function CreateTaskForm({
     const newTask = await res.json();
 
     // 🔔 Real-time notifications for each assignee
-    memberIds.forEach(userId => {
-      socket.emit('taskCreated', {
-        senderId: currentUser._id,
-        receiverId: userId,
-        message: `New task assigned: "${title}" in project ${projectName}`,
-        taskId: newTask._id,
-      });
+    // memberIds.forEach(userId => {
+    //   sendNotification('taskCreated', {
+    //     senderId: currentUser._id,
+    //     receiverId: userId,
+    //     message: `New task assigned: "${title}" in project ${projectName}`,
+    //     taskId: newTask._id,
+    //   });
+    // });
+
+     // Send notifications to each assigned user
+  for (const userId of memberIds) {
+    await sendNotification({
+      recipientId: userId,
+      senderId: currentUser._id,
+      type: 'task',
+      message: `New task assigned: "${title}" in project ${projectName}`,
+      link: `/tasks/${newTask._id}`,
     });
+  }
 
     toast.success('Task created successfully!');
     setTitle('');

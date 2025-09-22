@@ -6,7 +6,8 @@ import { authenticate } from "@/lib/middleware/authenticate";
 // import { checkRole } from "@/lib/middleware/checkRole";
 import { verifyAuth } from "@/lib/auth";
 // import { sendNotification } from "@/lib/notifications";
-// import User from "@/app/models/User";
+import User from "@/app/models/User";
+import { sendNotification } from "@/lib/notifications"; 
 // import { getIO } from "@/lib/socket"; 
 // import { sendNotification } from "@/lib/notifications";
 // ... rest of your code
@@ -136,29 +137,36 @@ export async function POST(req) {
       progress: 0,
     });
 
-  // ----------------- Notify Admins and Assignees -----------------
-// const admins = await User.find({ role: "admin" }).select("_id");
+   // ----------------- Notify Admins and Assignees -----------------
+    // const admins = await User.find({ role: "admin" }).select("_id");
+    // const recipients = [
+    //   ...admins.map(a => a._id.toString()),      // admins
+    //   ...body.assignees.map(a => a.user),       // assignees
+    // ];
 
-// // Correct logging
-// console.log("admins:", admins.map(a => a._id.toString()));
+    // // ✅ Unique IDs only
+    // const assigneeIds = [...new Set(recipients)];
+    // console.log("📢 Sending notifications to:", assigneeIds);
 
-// const recipients = [
-//   ...admins.map(a => a._id.toString()), // map each admin _id to string
-//   ...body.assignees.map(a => a.user)   // keep assignees as-is
-// ];
+    // assigneeIds.forEach((userId) => {
+    //   sendNotification(userId, {
+    //     title: "📝 New Task Assigned",
+    //     message: `${user.name || user.email} assigned you a task: ${body.title}`,
+    //     type: "task",
+    //     data: { taskId: task._id, projectId: body.projectId },
+    //   });
+    // });
 
-// await Promise.all(
-//   recipients.map(recipientId =>
-//     sendNotification({
-//       recipientId,
-//       senderId: user.id.toString(),
-//       type: "task",
-//       message: `${user.name || user.email} created a new task: ${body.title}`,
-//       link: `/dashboard/tasks/${task._id}`,
-//     }).catch(err => console.error("Notification error:", err))
-//   )
-// );
-
+      // Notify assignees individually
+  for (const assignee of task.assignees) {
+    await sendNotification({
+      recipientId: assignee.user.toString(),
+      senderId: task.createdBy.toString(),
+      type: "task-assigned",
+      message: `New task assigned: ${task.title}`,
+      link: `/tasks/${task._id}`,
+    });
+  }
 
     return NextResponse.json(task, { status: 201 });
 
