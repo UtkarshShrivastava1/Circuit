@@ -34,27 +34,35 @@ export async function GET(req) {
 
     // ✅ Get projectName from query parameters
     const { searchParams } = new URL(req.url);
-    const projectName = searchParams.get('projectName')
-    const projectId = searchParams.get('projectId')
+    // const projectName = searchParams.get('projectName')
+    // const projectId = searchParams.get('projectId')
     let query = {};
 
-    if (projectName) {
-      // ✅ Find project by name first, then use its _id
-       const Project = (await import('@/app/models/project')).default;
-      const project = await Project.findOne({ projectName: projectName });
+    // console.log('projectName : ',projectName ,'projectId : ',projectId);
+
+    // if (projectName) {
+    //   // ✅ Find project by name first, then use its _id
+    //    const Project = (await import('@/app/models/project')).default;
+    //   const project = await Project.findOne({ projectName: projectName });
       
-      if (!project) {
-        return NextResponse.json({ error: "Project not found" }, { status: 404 });
-      }
+    //   if (!project) {
+    //     return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    //   }
       
-      query.projectId = project._id;
-    }
+    //   query.projectId = projectId._id;
+    // }
+
+
+  
     
     // Add role-based filtering
     if (user.role === "member") {
       // Members can only see tasks assigned to them
+     
       query["assignees.user"] = user.id;
+    
     }
+
 
     // ✅ Simplified query without problematic populates
     const tasks = await Task.find(query)
@@ -65,6 +73,8 @@ export async function GET(req) {
       .populate('subtasks')
       .lean() // For better performance
       .exec();
+
+      // console.log("tasks : ",tasks)
 
     return NextResponse.json(tasks, { status: 200 });
   } catch (err) {

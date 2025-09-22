@@ -10,6 +10,9 @@ export async function POST(req) {
     await dbConnect();
     const { email } = await req.json();
 
+    console.log('email : ',email)
+
+
     if (!email) {
       return NextResponse.json(
         { success: false, message: 'Email is required' },

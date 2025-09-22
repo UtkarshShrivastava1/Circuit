@@ -14,6 +14,8 @@ function ManageAllTasks() {
   const taskIdfromserchaParam = searchParams.get("taskId");
   const projectName = searchParams.get("projectName") || "";
 
+   console.log("projectName : ",projectName);
+
   const [activeTab, setActiveTab] = useState("tasks");
   const [tasks, setTasks] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -92,12 +94,12 @@ function ManageAllTasks() {
         setError("");
 
         // Fetch tasks with proper error handling
-        let apiUrl = "/api/tasks";
-        if (projectName.trim()) {
-          apiUrl += `?projectId=${encodeURIComponent(projectName)}`;
-        }
+        // let apiUrl = "/api/tasks";
+        // if (projectName.trim()) {
+        //   apiUrl += `?projectId=${encodeURIComponent(projectName)}`;
+        // }
 
-        const resTasks = await fetch(apiUrl, {
+        const resTasks = await fetch("/api/tasks", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -116,6 +118,8 @@ function ManageAllTasks() {
 
         const tasksData = await resTasks.json();
         setTasks(Array.isArray(tasksData) ? tasksData.slice().reverse() : []);
+
+       
 
         // Extract tickets from all tasks
         const allTickets = tasksData.flatMap((task) => task.tickets || []);

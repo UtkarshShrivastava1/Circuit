@@ -74,7 +74,7 @@ const projectSchema = new mongoose.Schema(
     announcements: { type: [announcementSchema], default: [] },
 },
   { timestamps: true }
-);
+); 
 
 const Project = mongoose.models.Project || mongoose.model("Project", projectSchema);
 
