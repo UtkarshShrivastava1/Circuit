@@ -45,6 +45,7 @@ export default function ProjectDetails() {
   const [updatesByDate, setUpdatesByDate] = useState({});
   const [announcements, setAnnouncements] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen ]= useState(false);
   const pathname = usePathname();
   const projectName = pathname.split("/").pop();
   const [project, setProject] = useState(null);
@@ -89,14 +90,14 @@ useEffect(() => {
 
 const openDeleteModal = (announcementId) => {
   setSelectedAnnouncementId(announcementId);
-  setIsModalOpen(true);
+  setIsDeleteModalOpen(true);
 };
 
 const confirmDelete = () => {
   if (selectedAnnouncementId) {
     handleDeleteAnnouncement(selectedAnnouncementId);
   }
-  setIsModalOpen(false);
+   setIsDeleteModalOpen(false);
   setSelectedAnnouncementId(null);
 };
 
@@ -146,7 +147,7 @@ const confirmDelete = () => {
         if (!userRes.ok) throw new Error("Not authenticated");
         const userData = await userRes.json();
         setUser(userData);
-        // console.log("userData : ", userData);
+        console.log("userData : ", userData);
 
         if (userData.role === "admin") {
           setIsAdmin(true);
@@ -243,7 +244,6 @@ const confirmDelete = () => {
 
 
    const handleDeleteAnnouncement = async (announcementId) => {
-     
         
       try {
         const token = localStorage.getItem("token");
@@ -1007,11 +1007,11 @@ const toInputDate = (dateStr) => {
 
     {/* ✅ Single Delete Modal here */}
     <DeleteProjectModal
-      isOpen={isModalOpen}
-       toggle={() => setIsModalOpen(prev => !prev)}
+      isOpen={isDeleteModalOpen}
+       toggle={() => setIsDeleteModalOpen(prev => !prev)}
       projectName="Delete Announcement"
       loading={loadingUpdate}
-      onCancel={() => setIsModalOpen(false)}
+      onCancel={() => setIsDeleteModalOpen(false)}
       onConfirm={confirmDelete}
     />
   </Card>
