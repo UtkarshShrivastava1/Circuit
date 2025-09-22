@@ -22,17 +22,24 @@ import { verifyToken } from "@/lib/auth";
       return NextResponse.json({ error: "Work mode is required (office or wfh)" }, { status: 400 });
     }
 
-    // Use this for checking existing attendance (midnight time)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+// Create date range for today (start and end of day)
+const todayStart = new Date();
+todayStart.setHours(0, 0, 0, 0);
+const todayEnd = new Date();
+todayEnd.setHours(23, 59, 59, 999);
 
-    // Use this for storing the actual attendance time
-    const currentTime = new Date();
+// Use current time for storing
+const currentTime = new Date();
 
-    let existing = await Attendance.findOne({ userId: decoded.id, date: todayStart });
-    if (existing) {
-      return NextResponse.json({ error: "Attendance already marked for today" }, { status: 400 });
-    }
+// Check for existing attendance within today's date range
+let existing = await Attendance.findOne({ 
+  userId: decoded.id, 
+  date: { $gte: todayStart, $lte: todayEnd }
+});
+if (existing) {
+  return NextResponse.json({ error: "Attendance already marked for today" }, { status: 400 });
+}
+
 
     const attendance = await Attendance.create({
       userId: decoded.id,

@@ -68,32 +68,47 @@ export default function AttendancePage() {
     }
   };
 
-  // Mark attendance (self)
-  const handleMarkAttendance = async () => {
-    setIsMarking(true);
-    try {
-      const res = await fetch("/api/attendance/mark", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ status: "present", workMode }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage(`✅ Attendance marked (${workMode})!`);
-        await fetchMyAttendance();
-      } else {
-        setMessage(data.error || "❌ Failed to mark attendance");
-      }
-    } catch (error) {
-      setMessage("⚠️ Error marking attendance");
-    } finally {
-      setIsMarking(false);
-    }
-  };
+// Add this at the top of your component (after other state declarations)
+const [pendingRequest, setPendingRequest] = useState(null);
 
+// Replace the handleMarkAttendance function
+const handleMarkAttendance = async () => {
+  // Prevent multiple simultaneous requests
+  if (isMarking || pendingRequest) return;
+  
+  setIsMarking(true);
+  setMessage(""); // Clear previous messages
+  
+  const requestPromise = fetch("/api/attendance/mark", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ status: "present", workMode }),
+  });
+  
+  setPendingRequest(requestPromise);
+  
+  try {
+    const res = await requestPromise;
+    const data = await res.json();
+    if (res.ok) {
+      setMessage(`✅ Attendance marked (${workMode})!`);
+      await fetchMyAttendance();
+    } else {
+      setMessage(data.error || "❌ Failed to mark attendance");
+    }
+  } catch (error) {
+    setMessage("⚠️ Error marking attendance");
+  } finally {
+    // Add delay to prevent rapid resubmission
+    setTimeout(() => {
+      setIsMarking(false);
+      setPendingRequest(null);
+    }, 2000);
+  }
+};
   // ---------- For approval/report (admin/manager) ----------
   const fetchPending = async () => {
     const res = await fetch("/api/attendance/pending", {
@@ -286,7 +301,7 @@ export default function AttendancePage() {
             </div>
             <button
               onClick={handleMarkAttendance}
-              disabled={isMarking}
+              disabled={isMarking || pendingRequest !== null}
               className={`w-[500px] py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
                 isMarking
                   ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
