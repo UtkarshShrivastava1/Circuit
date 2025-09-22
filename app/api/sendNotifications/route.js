@@ -19,11 +19,11 @@
 //   return new Response(JSON.stringify(notifications), { status: 200 });
 // }
 
-import dbConnect from "./mongodb";
+import dbConnect from "@/lib/mongodb";
 import mongoose from "mongoose";
 import Alert from "@/app/models/Notification.model";
 import PushSubscription from "@/app/models/PushSubscription";
-import webpush from "./webpush";
+import webpush from "@/lib/webpush";
 
 export async function sendNotification({
   recipientId,
