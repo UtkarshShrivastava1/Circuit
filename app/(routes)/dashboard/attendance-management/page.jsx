@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
-import {io} from 'socket.io-client'
+// import {io} from 'socket.io-client'
+import { Button } from '@/components/ui/button';
+
 
 export default function AttendancePage() {
   const [userRole, setUserRole] = useState(null);
@@ -299,17 +301,17 @@ const handleMarkAttendance = async () => {
                 </span>
               </label>
             </div>
-            <button
+            <Button
               onClick={handleMarkAttendance}
               disabled={isMarking || pendingRequest !== null}
-              className={`w-[500px] py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
+              className={`lg:w-[400px] w-auto px-auto py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
                 isMarking
                   ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
               }`}
             >
               {isMarking ? "Marking..." : "Mark Present"}
-            </button>
+            </Button>
             {message && (
               <p
                 className={`mt-3 text-center font-medium ${
