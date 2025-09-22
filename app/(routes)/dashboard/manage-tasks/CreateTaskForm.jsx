@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { sendNotification } from "@/lib/notifications";
 
 export default function CreateTaskForm({
-  projectId, 
+  projectId,
   projectName,
   currentUser,
   onTaskCreated,
@@ -65,11 +66,6 @@ export default function CreateTaskForm({
   }
 
   // Send notification function
-  // function sendNotification(userId, notificationData) {
-  //   if (socket && typeof socket.emit === "function") {
-  //     socket.emit("notification", notificationData);
-  //   }
-  // }
 
   useEffect(() => {
     async function fetchParticipants() {
@@ -103,86 +99,99 @@ export default function CreateTaskForm({
   }
 
   async function handleSubmit(e) {
-  e.preventDefault();
-  setError('');
-  if (!title.trim() || !description.trim()) {
-    setError('Please fill in both title and description.');
-    return;
-  }
+    e.preventDefault();
+    setError("");
+    if (!title.trim() || !description.trim()) {
+      setError("Please fill in both title and description.");
+      return;
+    }
 
-  if (memberIds.length === 0) {
-    setError('Please select at least one assignee.');
-    return;
-  }
+    if (memberIds.length === 0) {
+      setError("Please select at least one assignee.");
+      return;
+    }
 
-  const token = localStorage.getItem('token');
-  if (!token) return router.push('/login');
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
 
-  // const SOCKET_URL =
-  //   typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
-  //     ? process.env.NEXT_PUBLIC_SOCKET_URL
-  //     : window?.location?.origin || "";
+    // const SOCKET_URL =
+    //   typeof window !== "undefined" && process?.env?.NEXT_PUBLIC_SOCKET_URL
+    //     ? process.env.NEXT_PUBLIC_SOCKET_URL
+    //     : window?.location?.origin || "";
 
-  // const socket = io(SOCKET_URL);
+    // const socket = io(SOCKET_URL);
 
-  setSubmitting(true);
-  try {
-    const payload = {
-      title: title.trim(),
-      description: description.trim(),
-      projectId,
-      projectName,
-      userId: currentUser._id,
-      assignees: memberIds.map(id => ({ user: id, state: 'assigned' })), // ✅ use memberIds
-      priority,
-      estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
-      ...(dueDate && { dueDate: new Date(dueDate) }),
-      checklist: checklist.map(item => ({
-        item: item.item,
-        isCompleted: item.isCompleted,
-      })),
-    };
+    setSubmitting(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        projectId,
+        projectName,
+        userId: currentUser._id,
+        assignees: memberIds.map((id) => ({ user: id, state: "assigned" })), // ✅ use memberIds
+        priority,
+        estimatedHours: estimatedHours ? Number(estimatedHours) : 0,
+        ...(dueDate && { dueDate: new Date(dueDate) }),
+        checklist: checklist.map((item) => ({
+          item: item.item,
+          isCompleted: item.isCompleted,
+        })),
+      };
 
-    console.log("task payload :", payload);
+      console.log("task payload :", payload);
 
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!res.ok) throw new Error('Failed to create task');
+      if (!res.ok) throw new Error("Failed to create task");
 
-    const newTask = await res.json();
+      const newTask = await res.json();
 
-    // 🔔 Real-time notifications for each assignee
-    // memberIds.forEach(userId => {
-    //   sendNotification('taskCreated', {
-    //     senderId: currentUser._id,
-    //     receiverId: userId,
-    //     message: `New task assigned: "${title}" in project ${projectName}`,
-    //     taskId: newTask._id,
-    //   });
-    // });
+      // 🔔 Real-time notifications for each assignee
+      // memberIds.forEach(userId => {
+      //   sendNotification('taskCreated', {
+      //     senderId: currentUser._id,
+      //     receiverId: userId,
+      //     message: `New task assigned: "${title}" in project ${projectName}`,
+      //     taskId: newTask._id,
+      //   });
+      // });
 
-     // Send notifications to each assigned user
-  for (const userId of memberIds) {
-    await sendNotification({
-      recipientId: userId,
-      senderId: currentUser._id,
-      type: 'task',
-      message: `New task assigned: "${title}" in project ${projectName}`,
-      link: `/tasks/${newTask._id}`,
-    });
-  }
+      for (const userId of memberIds) {
+        try {
+          const res = await fetch("/api/notifications/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              recipientId: userId,
+              senderId: currentUser._id,
+              type: "task",
+              message: `New task assigned: "${title}" in project ${projectName}`,
+              link: `/tasks/${newTask._id}`,
+            }),
+          });
+
+          if (!res.ok) {
+            console.error("Failed to send notification to user:", userId);
+          }
+        } catch (error) {
+          console.error("Error sending notification to user:", userId, error);
+        }
+      }
 
       // Send notifications safely
       const notificationPromises = assigneeIds.map(async (userId) => {
         try {
-           sendNotification(userId, {
+          sendNotification(userId, {
             senderId: currentUser._id,
             receiverId: userId,
             message: `📝 New task assigned: "${title}" in project "${projectName}"`,

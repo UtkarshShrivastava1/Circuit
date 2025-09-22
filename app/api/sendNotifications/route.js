@@ -1,42 +1,39 @@
-// // /app/api/notifications/route.js
-// import dbConnect from "@/lib/mongodb";
-// import Alert from "@/app/models/Notification.model";
-
-// export async function POST(req) {
-//   await dbConnect();
-//   const { senderId, receiverId, message } = await req.json();
-
-//   const notification = await Alert.create({ senderId, receiverId, message });
-//   return new Response(JSON.stringify(notification), { status: 201 });
-// }
-
-// export async function GET(req) {
-//   await dbConnect();
-//   const { searchParams } = new URL(req.url);
-//   const userId = searchParams.get("userId");
-
-//   const notifications = await Alert.find({ receiverId: userId }).sort({ createdAt: -1 });
-//   return new Response(JSON.stringify(notifications), { status: 200 });
-// }
-
 import dbConnect from "@/lib/mongodb";
 import mongoose from "mongoose";
 import Alert from "@/app/models/Notification.model";
-import PushSubscription from "@/app/models/PushSubscription";
-import webpush from "@/lib/webpush";
 
+/**
+ * sendNotification
+ * Saves a notification to the DB and emits it via socket.io (if available).
+ *
+ * Params:
+ * - recipientId (string) : required
+ * - senderId (string|null)
+ * - type (string) default "system"
+ * - message (string) required
+ * - link (string|null)
+ * - io (socket.io instance|null) optional
+ */
 export async function sendNotification({
   recipientId,
   senderId = null,
   type = "system",
   message,
   link = null,
-  io = null, // optional socket.io instance
+  io = null,
 }) {
+  if (!recipientId) {
+    throw new Error("recipientId is required");
+  }
+  if (!message) {
+    throw new Error("message is required");
+  }
+
   await dbConnect();
-  console.log(`Sending notification to: ${recipientId}`);
-  console.log(`Notification type: ${type}`);
-  console.log(`Message: ${message}`);
+
+  console.log(
+    `Preparing notification -> recipient: ${recipientId}, type: ${type}`
+  );
 
   // 1) Save notification in DB
   let notif;
@@ -54,45 +51,30 @@ export async function sendNotification({
     throw dbError;
   }
 
-  // 2) Emit notification via socket.io if provided
+  // 2) Emit notification via socket.io if provided (or global.io fallback)
   try {
-    if (io) {
-      io.to(`user_${recipientId}`).emit("notification", notif);
-    } else if (typeof global !== 'undefined' && global.io) {
-      global.io.to(`user_${recipientId}`).emit("notification", notif);
+    const channel = `user_${recipientId}`;
+    if (io && typeof io.to === "function") {
+      io.to(channel).emit("notification", notif);
+      console.log(
+        `Emitted notification to socket.io (provided instance) on ${channel}`
+      );
+    } else if (
+      typeof global !== "undefined" &&
+      global.io &&
+      typeof global.io.to === "function"
+    ) {
+      global.io.to(channel).emit("notification", notif);
+      console.log(
+        `Emitted notification to socket.io (global.io) on ${channel}`
+      );
     } else {
-      console.warn("No socket.io instance available for notification");
+      console.log("No socket.io instance available — skipping emit");
     }
-  } catch (e) {
-    console.error("Socket emit failed", e);
+  } catch (emitErr) {
+    console.error("Socket emit failed:", emitErr);
   }
 
-  // 3) Send Web Push notifications
-  try {
-    const subscriptions = await PushSubscription.find({
-      userId: new mongoose.Types.ObjectId(recipientId),
-    });
-
-    console.log(`Found ${subscriptions.length} push subscriptions for user ${recipientId}`);
-
-    for (const sub of subscriptions) {
-      try {
-        await webpush.sendNotification(
-          sub.subscription,
-          JSON.stringify({ title: "New Notification", message, url: link || "/" })
-        );
-        console.log("Push notification sent successfully");
-      } catch (err) {
-        console.error("Error sending web push", err);
-        if (err.statusCode === 410 || err.body?.includes("not a valid")) {
-          await PushSubscription.deleteOne({ _id: sub._id });
-          console.log(`Removed invalid subscription ${sub._id}`);
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Failed to send push notifications", err);
-  }
-
+  // 3) Return the saved notification so callers can use it
   return notif;
 }
