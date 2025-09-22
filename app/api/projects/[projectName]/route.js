@@ -47,10 +47,6 @@ export async function PUT(req, { params }) {
       { new: true }
     );
 
-    console.log('updatedProject',updatedProject);
-
-
-
     if (!updatedProject) {
       return new Response(
         JSON.stringify({ message: "Project not found" }),

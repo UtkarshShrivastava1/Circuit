@@ -99,7 +99,7 @@ export async function POST(req) {
 
     // ----------------- Parse & Validate Body -----------------
     const body = await req.json();
-    console.log("Task body name : ", body);
+    console.log("Task body name : ", body.projectName );
 
     const requiredFields = ["title", "description", "projectId", "assignees"];
     for (const field of requiredFields) {
@@ -136,28 +136,43 @@ export async function POST(req) {
       progress: 0,
     });
 
-  // ----------------- Notify Admins and Assignees -----------------
+// ----------------- Notify Admins and Assignees -----------------
 // const admins = await User.find({ role: "admin" }).select("_id");
 
-// // Correct logging
-// console.log("admins:", admins.map(a => a._id.toString()));
-
 // const recipients = [
-//   ...admins.map(a => a._id.toString()), // map each admin _id to string
-//   ...body.assignees.map(a => a.user)   // keep assignees as-is
+//   ...admins.map(a => a._id.toString()),
+//   ...body.assignees.map(a => a.user),
 // ];
-
+// const io = getIO();
+// // Save notifications to DB
 // await Promise.all(
 //   recipients.map(recipientId =>
 //     sendNotification({
 //       recipientId,
-//       senderId: user.id.toString(),
-//       type: "task",
-//       message: `${user.name || user.email} created a new task: ${body.title}`,
+//       senderId: user._id.toString(),
+//       type: "task_assigned",
+//       message: `📝 ${user.name || user.email} assigned a new task: "${body.title}" in ${body.projectName}`,
 //       link: `/dashboard/tasks/${task._id}`,
+//       io
 //     }).catch(err => console.error("Notification error:", err))
 //   )
 // );
+
+// // ✅ Real-time push with socket.io
+// if (global._io) {
+//   recipients.forEach((recipientId) => {
+//     global._io.sockets.sockets.forEach((s) => {
+//       if (s.userId === recipientId) {
+//         s.emit("notification", {
+//           type: "task_assigned",
+//           message: `📝 ${user.name || user.email} assigned you a new task: "${body.title}"`,
+//           taskId: task._id,
+//           projectId: body.projectId,
+//         });
+//       }
+//     });
+//   });
+// }
 
 
     return NextResponse.json(task, { status: 201 });

@@ -1,5 +1,5 @@
 import dbConnect from "@/lib/mongodb";
-import Alert from "@/app/models/Notification.model";
+import Notification from "@/app/models/Notification.model";
 
 export async function POST(req) {
   await dbConnect();
@@ -24,7 +24,7 @@ export async function POST(req) {
     const { msgcontent, source, dataTo, toEmail, date } = body;
 
     // ✅ Build Notification object matching schema
-    const notification = new Alert({
+    const notification = new Notification({
       fromEmail,
       msg: {
         msgcontent,

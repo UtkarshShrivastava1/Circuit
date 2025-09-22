@@ -1,6 +1,7 @@
+// models/Notification.js
 import mongoose from "mongoose";
 
-const AlertSchema = new mongoose.Schema(
+const NotificationSchema = new mongoose.Schema(
   {
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -11,4 +12,4 @@ const AlertSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Alert || mongoose.model("Alert", AlertSchema);
+export default mongoose.models.Notification || mongoose.model("Notification", NotificationSchema);

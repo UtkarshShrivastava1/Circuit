@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Alert from "@/app/models/Notification.model";
+import Notification from "@/app/models/Notification.model";
 
 // DELETE /api/notifications/[id]
 export async function DELETE(req, { params }) {
@@ -15,7 +15,7 @@ export async function DELETE(req, { params }) {
       );
     }
 
-    const deleted = await Alert.findByIdAndDelete(id);
+    const deleted = await Notification.findByIdAndDelete(id);
 
     if (!deleted) {
       return NextResponse.json(

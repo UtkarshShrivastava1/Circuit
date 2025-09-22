@@ -604,19 +604,10 @@ function ManageAllTasks() {
           </div>
         )}
 
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          className="mt-16"
-        />
+     
       </div>
+      
+
     </div>
   );
 }

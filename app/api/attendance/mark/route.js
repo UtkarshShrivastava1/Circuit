@@ -1,9 +1,11 @@
+// ye mark vala route hai mark/routes.js
+
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Attendance from "@/app/models/Attendance";
 import { verifyToken } from "@/lib/auth";
 
-export async function POST(req) {
+ export async function POST(req) {
   try {
     await dbConnect();
 
@@ -20,40 +22,23 @@ export async function POST(req) {
       return NextResponse.json({ error: "Work mode is required (office or wfh)" }, { status: 400 });
     }
 
-    // Create consistent date boundaries for today
+    // Use this for checking existing attendance (midnight time)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
 
-    // Check for existing attendance within today's date range
-    let existing = await Attendance.findOne({ 
-      userId: decoded.id, 
-      date: {
-        $gte: todayStart,
-        $lte: todayEnd
-      }
-    });
+    // Use this for storing the actual attendance time
+    const currentTime = new Date();
 
+    let existing = await Attendance.findOne({ userId: decoded.id, date: todayStart });
     if (existing) {
-      return NextResponse.json({ 
-        error: "Attendance already marked for today",
-        existingAttendance: {
-          date: existing.date,
-          workMode: existing.workMode,
-          status: existing.approvalStatus || 'pending'
-        }
-      }, { status: 400 });
+      return NextResponse.json({ error: "Attendance already marked for today" }, { status: 400 });
     }
 
-    // Create attendance with current timestamp
     const attendance = await Attendance.create({
       userId: decoded.id,
       status: status || "present",
       workMode,
-      date: new Date(), // Current timestamp
-      approvalStatus: "pending" // Explicitly set initial status
+      date: currentTime, // Store the actual current time instead of midnight
     });
 
     return NextResponse.json({ success: true, attendance });

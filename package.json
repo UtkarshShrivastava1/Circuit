@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "start": "node server.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -31,12 +31,13 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "firebase": "^10.13.0",
     "firebase-admin": "^12.3.1",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.428.0",
     "mongoose": "^8.17.0",
     "multer": "^2.0.2",
-    "next": "14.2.5",
+    "next": "^15.5.3",
     "next-auth": "^4.24.11",
     "next-connect": "^1.0.0",
     "next-themes": "^0.3.0",

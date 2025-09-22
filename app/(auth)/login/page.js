@@ -552,13 +552,13 @@ export default function LoginForm() {
           </div>
         </div>
       </div>
-
+{/* 
       <ToastContainer 
         position="top-right" 
         autoClose={5000}
         theme="auto"
         className="dark:bg-slate-800"
-      />
+      /> */}
 
       <style jsx>{`
         @keyframes float {

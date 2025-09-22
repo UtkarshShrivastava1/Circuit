@@ -4,7 +4,6 @@ import SideNav from "./_components/SideNav";
 import DashboardHeader from "./_components/DashboardHeader";
 import { useRouter } from "next/navigation";
 import Loading from "./_components/Loading";
-import axios from 'axios'
 
 function Layout({ children }) {
   const router = useRouter();
@@ -12,29 +11,25 @@ function Layout({ children }) {
   const [loading, setLoading] = useState(true);
   const [userProfileState, setUserProfileState] = useState("");
 
-useEffect(() => {
+  useEffect(() => {
   async function fetchSession() {
     try {
-      const res = await axios.get("/api/auth/session");
-
-      if (res.status !== 200) {
+      const res = await fetch("/api/auth/session");
+      if (!res.ok) {
         setUser(null);
         router.push("/login");
         return;
       }
-
-      const userData = res.data;
+      const userData = await res.json();
       setUser(userData);
       setUserProfileState(userData.profileState);
-    } catch (error) {
-      console.error("Session fetch error:", error);
+    } catch {
       setUser(null);
       router.push("/login");
     } finally {
       setLoading(false);
     }
   }
-
   fetchSession();
 }, [router]);
 
@@ -51,7 +46,7 @@ useEffect(() => {
       <div className="flex justify-center items-center h-screen">
         <div className="loader"><Loading message="Loading data..." />
 </div>
-       
+        {/* Replace with your loader spinner/component */}
       </div>
     );
   }
