@@ -210,6 +210,7 @@ const confirmDelete = () => {
         );
         if (!res.ok) throw new Error("Failed to load updates");
         const data = await res.json();
+        console.log('Updates : ',data);
 
         // Group updates by date
         const groupedUpdates = data.updates.reduce((acc, update) => {
@@ -323,7 +324,6 @@ const confirmDelete = () => {
         }
 
         const data = await res.json();
-        // console.log(" Task Data : " , data)
         setTasks(Array.isArray(data) ? data : data.tasks || []);
       } catch (e) {
         console.error("Tasks error", e);
@@ -404,7 +404,7 @@ const confirmDelete = () => {
     }
   };
 
-  // console.log(tasks )
+  
 
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
   const handleFileChangePost = (e) => setFilePost(e.target.files[0] || null);
@@ -464,6 +464,8 @@ const confirmDelete = () => {
     }
   };
 
+  // ----------------------------------------------------------------//
+
 const handlePostAnnouncement = async () => {
   if (!announcementMsg.trim()) {
     toast.error("Post can't be empty");
@@ -501,7 +503,6 @@ const handlePostAnnouncement = async () => {
     if (!uploadRes.ok) throw new Error("File upload failed");
 
     const uploadData = await uploadRes.json();
-    console.log("Upload Data:", uploadData);
 
     const fileUrl = uploadData.url;
     if (!fileUrl) throw new Error("Upload response missing URL");
@@ -591,7 +592,7 @@ const toInputDate = (dateStr) => {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
-//  console.log('End Date',toInputDate(endDate));
+
 
   const projectManager = participants.find(
     (p) => p.roleInProject === "project-manager"
@@ -600,7 +601,7 @@ const toInputDate = (dateStr) => {
     (p) => p.roleInProject === "project-member"
   );
 
-  // console.log('project;',project);
+
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
@@ -1030,11 +1031,11 @@ const toInputDate = (dateStr) => {
       </Tabs>
 
       {/* <ToastContainer /> */}
-      {/* <Modal
+      <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         message={selectedMessage || selectedAnnouncementMsg}
-      /> */}
+      />
     </div>
   );
 }
