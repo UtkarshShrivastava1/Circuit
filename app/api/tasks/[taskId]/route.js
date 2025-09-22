@@ -2,39 +2,44 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Task from "@/app/models/Tasks";
+import User from "@/app/models/User";
+import Project from "@/app/models/project";
 import { authenticate } from "@/lib/middleware/authenticate"; // ✅ JWT helper
 import { checkRole } from "@/lib/middleware/checkRole"; // ✅ role helper
 import mongoose from "mongoose";
+import { sendTaskCompletionEmail } from "@/lib/emailUtils";
 
 // 🔹 GET → fetch single task
 export async function GET(req, { params }) {
   const { taskId } = params;
 
   if (!mongoose.Types.ObjectId.isValid(taskId)) {
-    return NextResponse.json({ error: 'Invalid Task ID' }, { status: 400 });
+    return NextResponse.json({ error: "Invalid Task ID" }, { status: 400 });
   }
 
   try {
     await dbConnect();
 
     const task = await Task.findById(taskId)
-      .populate('assignees.user', 'name email')
-      .populate('projectId', 'projectNamename') 
-      .populate('createdBy', 'name email')
-      .populate('subtasks')
+      .populate("assignees.user", "name email")
+      .populate("projectId", "projectNamename")
+      .populate("createdBy", "name email")
+      .populate("subtasks")
       .lean();
 
     if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     return NextResponse.json(task);
   } catch (error) {
-    console.error('GET /api/tasks/[taskId] error:', error);
-    return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
+    console.error("GET /api/tasks/[taskId] error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch task" },
+      { status: 500 }
+    );
   }
 }
-
 
 // 🔹 PUT → update task (Admin + Manager, Members only if assigned)
 export async function PUT(req, { params }) {
@@ -53,16 +58,32 @@ export async function PUT(req, { params }) {
     }
 
     // ✅ Members can update ONLY their own assigned task
-    if (user.role === "member" && task.assignedTo.toString() !== user._id.toString()) {
-      return NextResponse.json({ error: "Forbidden: Cannot update others' tasks" }, { status: 403 });
+    const isAssignee = task.assignees.some(
+      (assignee) => assignee.user.toString() === user._id.toString()
+    );
+
+    if (user.role === "member" && !isAssignee) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot update others' tasks" },
+        { status: 403 }
+      );
     }
 
     // ✅ Admin + Manager can update any task
     if (!["admin", "manager", "member"].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden: Invalid role" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Forbidden: Invalid role" },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
+
+    // Get the current task before updating to check for status change
+    const currentTask = await Task.findById(taskId)
+      .populate("assignedBy", "name email")
+      .populate("projectId", "projectName");
+
     const updated = await Task.findByIdAndUpdate(taskId, body, {
       new: true,
       runValidators: true,
@@ -71,10 +92,43 @@ export async function PUT(req, { params }) {
       .populate("tickets.assignedTo")
       .populate("tickets.createdBy");
 
+    // Send completion email if task was marked as completed
+    if (
+      body.status === "completed" &&
+      currentTask &&
+      currentTask.status !== "completed"
+    ) {
+      try {
+        // Get project details
+        const project = await Project.findById(currentTask.projectId);
+
+        // Get completed by user details
+        const completedByUser = await User.findById(user._id).select(
+          "name email"
+        );
+
+        // Send email to assignedBy user
+        if (project && completedByUser && currentTask.assignedBy) {
+          await sendTaskCompletionEmail(
+            updated,
+            project,
+            completedByUser,
+            currentTask.assignedBy
+          );
+        }
+      } catch (emailError) {
+        console.error("Failed to send task completion email:", emailError);
+        // Don't break the API response if email fails
+      }
+    }
+
     return NextResponse.json(updated, { status: 200 });
   } catch (err) {
     console.error("PUT /tasks/[taskId] error:", err);
-    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update task" },
+      { status: 500 }
+    );
   }
 }
 
@@ -90,7 +144,10 @@ export async function DELETE(req, { params }) {
     }
 
     if (!checkRole(user, ["admin"])) {
-      return NextResponse.json({ error: "Forbidden: Only admin can delete tasks" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Forbidden: Only admin can delete tasks" },
+        { status: 403 }
+      );
     }
 
     const deleted = await Task.findByIdAndDelete(taskId);
@@ -99,9 +156,15 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Task deleted successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Task deleted successfully" },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("DELETE /tasks/[taskId] error:", err);
-    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete task" },
+      { status: 500 }
+    );
   }
 }

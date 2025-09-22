@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    appDir: true, // safe if you're using the /app directory
-  },
-  swcMinify: true,
   images: {
     domains: ["res.cloudinary.com", "your-cdn.example.com"], // update with real hosts
   },

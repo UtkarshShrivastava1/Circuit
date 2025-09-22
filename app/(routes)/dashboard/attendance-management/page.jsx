@@ -4,9 +4,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+<<<<<<< Updated upstream
 // import {io} from 'socket.io-client'
 import { Button } from '@/components/ui/button';
 
+=======
+import {io} from 'socket.io-client'
+>>>>>>> Stashed changes
 
 export default function AttendancePage() {
   const [userRole, setUserRole] = useState(null);
@@ -304,7 +308,11 @@ const handleMarkAttendance = async () => {
             <Button
               onClick={handleMarkAttendance}
               disabled={isMarking || pendingRequest !== null}
+<<<<<<< Updated upstream
               className={`lg:w-[400px] w-auto px-auto py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
+=======
+              className={`w-[500px] py-2 sm:py-3 rounded-lg text-white font-semibold transition ${
+>>>>>>> Stashed changes
                 isMarking
                   ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"

@@ -10,26 +10,22 @@ app.prepare().then(() => {
   const server = createServer((req, res) => {
     handle(req, res);
   });
-  const io = new Server(server,{
-  cors: {
-    origin: "*", // or your frontend URL
-    methods: ["GET", "POST"],
-  },
-});
+  const io = new Server(server, {
+    cors: {
+      origin: "*", // or your frontend URL
+      methods: ["GET", "POST"],
+    },
+  });
 
   io.on("connection", (socket) => {
     // Handle socket events here
-    console.log("🔌 Client connected",socket.id);
+    console.log("🔌 Client connected", socket.id);
   });
 
   io.emit("hello !", " 🌎 world", (response) => {
-  console.log(response); // "got it"
-});
+    console.log(response); // "got it"
+  });
 
-
-
-
-  
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
     console.log(`> Ready on http://localhost:${PORT}`);

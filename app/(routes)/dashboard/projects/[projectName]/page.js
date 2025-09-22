@@ -38,19 +38,19 @@ import DeleteProjectModal from "../../_components/ConformationModal";
 import { io } from "socket.io-client";
 import { format } from "date-fns";
 
-
 // import downloadFile from "@/lib/downloadFile";
 
 export default function ProjectDetails() {
   const [updatesByDate, setUpdatesByDate] = useState({});
   const [announcements, setAnnouncements] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const pathname = usePathname();
   const projectName = pathname.split("/").pop();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [todayUpdate, setTodayUpdate] = useState("");
-  const [announcementMsg,  setAnnouncementMsg] = useState("");
+  const [announcementMsg, setAnnouncementMsg] = useState("");
   const [user, setUser] = useState(null);
   const [loadingUpdate, setLoadingUpdate] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -64,42 +64,41 @@ export default function ProjectDetails() {
   const [filePost, setFilePost] = useState(null);
   const [tasks, setTasks] = useState([]);
 
-// ---------------- Delete Announcement State ----------------
-const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
-// const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-const [selectedAnnouncementMsg, setSelectedAnnouncementMsg] = useState(null)
-const [socket, setSocket] = useState(null);
+  // ---------------- Delete Announcement State ----------------
+  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
+  // const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedAnnouncementMsg, setSelectedAnnouncementMsg] = useState(null);
+  const [socket, setSocket] = useState(null);
 
-useEffect(() => {
-  const newSocket = io(process.env.VAPID_PUBLIC_KEY); // your backend URL
-  setSocket(newSocket);
+  useEffect(() => {
+    const newSocket = io(process.env.VAPID_PUBLIC_KEY); // your backend URL
+    setSocket(newSocket);
 
-  // Listen for incoming notifications
-  newSocket.on("receiveNotification", (data) => {
-    toast.info(data.message);
-  });
+    // Listen for incoming notifications
+    newSocket.on("receiveNotification", (data) => {
+      toast.info(data.message);
+    });
 
-  return () => newSocket.disconnect();
-}, []);
-useEffect(() => {
-  if (socket && user?._id) {
-    socket.emit("join", user._id);
-  }
-}, [socket, user]);
+    return () => newSocket.disconnect();
+  }, []);
+  useEffect(() => {
+    if (socket && user?._id) {
+      socket.emit("join", user._id);
+    }
+  }, [socket, user]);
 
-const openDeleteModal = (announcementId) => {
-  setSelectedAnnouncementId(announcementId);
-  setIsModalOpen(true);
-};
+  const openDeleteModal = (announcementId) => {
+    setSelectedAnnouncementId(announcementId);
+    setIsDeleteModalOpen(true);
+  };
 
-const confirmDelete = () => {
-  if (selectedAnnouncementId) {
-    handleDeleteAnnouncement(selectedAnnouncementId);
-  }
-  setIsModalOpen(false);
-  setSelectedAnnouncementId(null);
-};
-
+  const confirmDelete = () => {
+    if (selectedAnnouncementId) {
+      handleDeleteAnnouncement(selectedAnnouncementId);
+    }
+    setIsDeleteModalOpen(false);
+    setSelectedAnnouncementId(null);
+  };
 
   const downloadFile = async (fileUrl) => {
     if (!fileUrl) return;
@@ -131,7 +130,6 @@ const confirmDelete = () => {
   const router = useRouter();
   // fetch user and projects
   useEffect(() => {
-
     async function fetchProjectAndUser() {
       setLoading(true);
       try {
@@ -146,7 +144,7 @@ const confirmDelete = () => {
         if (!userRes.ok) throw new Error("Not authenticated");
         const userData = await userRes.json();
         setUser(userData);
-        // console.log("userData : ", userData);
+        console.log("userData : ", userData);
 
         if (userData.role === "admin") {
           setIsAdmin(true);
@@ -174,14 +172,14 @@ const confirmDelete = () => {
   useEffect(() => {
     if (!projectName) return;
 
-      const controller = new AbortController();
-  const { signal } = controller;
+    const controller = new AbortController();
+    const { signal } = controller;
 
     async function fetchAnnouncements() {
       try {
         const res = await fetch(
           `/api/projectUpdates/announcements?projectName=${projectName}`,
-          {signal}
+          { signal }
         );
         if (!res.ok) throw new Error("Failed to load announcements");
 
@@ -201,7 +199,6 @@ const confirmDelete = () => {
     }
 
     //Delete Announcement
-   
 
     async function fetchUpdates() {
       try {
@@ -210,7 +207,7 @@ const confirmDelete = () => {
         );
         if (!res.ok) throw new Error("Failed to load updates");
         const data = await res.json();
-        console.log('Updates : ',data);
+        console.log("Updates : ", data);
 
         // Group updates by date
         const groupedUpdates = data.updates.reduce((acc, update) => {
@@ -239,56 +236,49 @@ const confirmDelete = () => {
     return () => controller.abort(); // cleanup on unmount / projectName change
   }, [projectName]);
 
-
-
-
-   const handleDeleteAnnouncement = async (announcementId) => {
-     
-        
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          toast.error("Authentication required.");
-          router.push("/login");
-          return;
-        }
-        const res = await fetch(
-          `/api/projectUpdates/announcements/${announcementId}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || "Failed to delete announcement");
-        }
-        toast.success("Announcement deleted successfully.");
-         setIsModalOpen(false);
-        // Refresh announcements
-        refreshAnnouncements();
-      } catch (err) {
-        toast.error(err.message);
+  const handleDeleteAnnouncement = async (announcementId) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Authentication required.");
+        router.push("/login");
+        return;
       }
-    };
-
-    const refreshAnnouncements = async () => {
-      try {
-        const res = await fetch(
-          `/api/projectUpdates/announcements?projectName=${projectName}`
-        );
-        if (!res.ok) throw new Error("Failed to reload announcements");
-        const data = await res.json();
-        const annArray = Array.isArray(data.announcements)
-          ? data.announcements
-          : [];
-        setAnnouncements(annArray.slice().reverse());
-      } catch (err) {
-        toast.error(err.message);
+      const res = await fetch(
+        `/api/projectUpdates/announcements/${announcementId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to delete announcement");
       }
-    };
+      toast.success("Announcement deleted successfully.");
+      setIsModalOpen(false);
+      // Refresh announcements
+      refreshAnnouncements();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
-  
+  const refreshAnnouncements = async () => {
+    try {
+      const res = await fetch(
+        `/api/projectUpdates/announcements?projectName=${projectName}`
+      );
+      if (!res.ok) throw new Error("Failed to reload announcements");
+      const data = await res.json();
+      const annArray = Array.isArray(data.announcements)
+        ? data.announcements
+        : [];
+      setAnnouncements(annArray.slice().reverse());
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
   {
     /* -------------------fetiching task --------------------------------- */
@@ -404,8 +394,6 @@ const confirmDelete = () => {
     }
   };
 
-  
-
   const handleFileChange = (e) => setFile(e.target.files[0] || null);
   const handleFileChangePost = (e) => setFilePost(e.target.files[0] || null);
 
@@ -466,48 +454,47 @@ const confirmDelete = () => {
 
   // ----------------------------------------------------------------//
 
-const handlePostAnnouncement = async () => {
-  if (!announcementMsg.trim()) {
-    toast.error("Post can't be empty");
-    return;
-  }
-
-  // if (!filePost) {
-  //   toast.error("Please select a file");
-  //   return;
-  // }
-
-  setLoadingUpdate(true);
-
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.error("No token found, please login.");
-      router.push("/login");
+  const handlePostAnnouncement = async () => {
+    if (!announcementMsg.trim()) {
+      toast.error("Post can't be empty");
       return;
     }
 
+    // if (!filePost) {
+    //   toast.error("Please select a file");
+    //   return;
+    // }
 
+    setLoadingUpdate(true);
 
-    let fileUrl = "No files";
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("No token found, please login.");
+        router.push("/login");
+        return;
+      }
 
-    // 1. Upload file first
-   if(filePost){ const formData = new FormData();
-    formData.append("file", filePost);
+      let fileUrl = "No files";
 
-    const uploadRes = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
+      // 1. Upload file first
+      if (filePost) {
+        const formData = new FormData();
+        formData.append("file", filePost);
 
-    if (!uploadRes.ok) throw new Error("File upload failed");
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-    const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error("File upload failed");
 
-    const fileUrl = uploadData.url;
-    if (!fileUrl) throw new Error("Upload response missing URL");
-}
-    // 2. Prepare body for announcement
+        const uploadData = await uploadRes.json();
+
+        const fileUrl = uploadData.url;
+        if (!fileUrl) throw new Error("Upload response missing URL");
+      }
+      // 2. Prepare body for announcement
       const body = {
         projectName,
         announcement: {
@@ -529,30 +516,32 @@ const handlePostAnnouncement = async () => {
       };
 
       // 3. Send announcement
-    const res = await fetch("/api/projectUpdates/addAnnouncement", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
+      const res = await fetch("/api/projectUpdates/addAnnouncement", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || "Failed to post announcement ,response is not getting");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(
+          error.error || "Failed to post announcement ,response is not getting"
+        );
+      }
+
+      toast.success("Announcement posted successfully!");
+      setAnnouncementMsg("");
+      setFilePost(null);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    } finally {
+      setLoadingUpdate(false);
     }
-
-    toast.success("Announcement posted successfully!");
-    setAnnouncementMsg("");
-    setFilePost(null);
-  } catch (error) {
-    console.error(error);
-    toast.error(error.message);
-  } finally {
-    setLoadingUpdate(false);
-  }
-};
+  };
   const [selectedMessage, setSelectedMessage] = useState(null);
 
   const handleShowModal = (message) => {
@@ -583,16 +572,15 @@ const handlePostAnnouncement = async () => {
   } = project;
 
   // Utility to format date to yyyy-mm-dd string for input[type='date']
-const toInputDate = (dateStr) => {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  // padStart to ensure 2-digit month/day
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-};
-
+  const toInputDate = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    // padStart to ensure 2-digit month/day
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
   const projectManager = participants.find(
     (p) => p.roleInProject === "project-manager"
@@ -600,8 +588,6 @@ const toInputDate = (dateStr) => {
   const projectMembers = participants.filter(
     (p) => p.roleInProject === "project-member"
   );
-
-
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
@@ -615,7 +601,9 @@ const toInputDate = (dateStr) => {
           >
             Announcements
           </TabsTrigger>
-        {isAdmin  && (<TabsTrigger value="manage-tasks">Create Task</TabsTrigger>)}
+          {isAdmin && (
+            <TabsTrigger value="manage-tasks">Create Task</TabsTrigger>
+          )}
         </TabsList>
 
         {/* ---------------Information--------------------------------- */}
@@ -871,152 +859,216 @@ const toInputDate = (dateStr) => {
           </Card>
         </TabsContent>
 
-
-      {/* ------------------------Announcement------------------------- */}
-<TabsContent value="announcements">
-  <Card>
-    <CardHeader>
-      <CardTitle>Announcements</CardTitle>
-      <CardDescription>Project announcements and notices.</CardDescription>
-      <div className="text-sm font-medium text-gray-500 ml-4">
-        {projectName || "Unknown Project"}
-      </div>
-    </CardHeader>
-
-    <CardContent className="space-y-2">
-      {isAdmin && project.projectState === "ongoing" && user?.role !== "member" ? (
-        <div className="space-y-4 mb-8 bg-white rounded-xl p-6 shadow dark:bg-black">
-          <Label className="block font-semibold mb-2 dark:text-white" htmlFor="announcementMsg">
-            Post
-          </Label>
-          <Input
-            id="announcementMsg"
-            value={announcementMsg}
-            onChange={(e) => setAnnouncementMsg(e.target.value)}
-            placeholder="Enter your announcement for today"
-            className="w-full border rounded px-4 py-2 mb-2"
-          />
-          <Label className="block font-semibold mb-2" htmlFor="postImg">
-            Project Source
-          </Label>
-          <Input
-            id="postImg"
-            type="file"
-            accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
-            onChange={handleFileChangePost}
-            className="w-full border rounded px-4 py-2 mb-2"
-          />
-          <Button onClick={handlePostAnnouncement} disabled={loadingUpdate} variant="secondary">
-            {loadingUpdate ? (
-              <div className="flex w-full items-center">
-                <Loader2 className="animate-spin mr-2 h-5 w-5" />
-                Posting...
+        {/* ------------------------Announcement------------------------- */}
+        <TabsContent value="announcements">
+          <Card>
+            <CardHeader>
+              <CardTitle>Announcements</CardTitle>
+              <CardDescription>
+                Project announcements and notices.
+              </CardDescription>
+              <div className="text-sm font-medium text-gray-500 ml-4">
+                {projectName || "Unknown Project"}
               </div>
-            ) : (
-              "Post Announcement"
-            )}
-          </Button>
-        </div>
-      ) : (
-        <div className="text-center text-gray-500">
-          {!isUserAuthorized && "You are not authorized to post announcements for this project."}
-          {project.projectState === "completed" && "This Project Completed."}
-        </div>
-      )}
-    </CardContent>
+            </CardHeader>
 
-    <CardFooter>
-      <CardContent className="px-0 w-full">
-        {isUserAuthorized || ["admin", "manager"].includes(user?.role) ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-1 lg:grid-cols-2">
-            {announcements.map((announcement) => (
-              <Card key={announcement._id} className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <div className="flex items-center border-b pb-2 mb-2">
-                  <div className="w-10 h-10 flex-shrink-0">
-                    <UserHoverCard email={announcement.postedBy?.email} />
-                  </div>
-                  <div className="ml-2">
-                    <div className="font-semibold">{announcement.postedBy?.name || "Unknown User"}</div>
-                    <div className="text-sm text-gray-500">
-                      {announcement.date ? new Date(announcement.date).toLocaleString() : ""}
-                    </div>
-                    <div className="text-xs text-gray-400">{projectName || "Unknown Project"}</div>
-                  </div>
-
-                  {/* Delete button aligned to the right */}
-                  {(isAdmin || user?.role === "admin") && (
-                    <div className="ml-auto">
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="bg-red-500 hover:bg-red-700 text-white rounded-full"
-                        onClick={() => openDeleteModal(announcement._id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <p className="mb-4">Message: {announcement.msg}</p>
-
-                {/* File attachment */}
-                {announcement.file && announcement.file !== "No Files" && (
-                  <div className="mb-4">
-                    {/\.(jpg|jpeg|png|gif|webp)$/i.test(announcement.file) ? (
-                      <div>
-                        <a href={announcement.file} download target="_blank" rel="noopener noreferrer" className="block">
-                          <Image
-                            src={announcement.file}
-                            alt="Announcement file"
-                            width={200}
-                            height={150}
-                            className="rounded-lg object-cover mb-5"
-                          />
-                        </a>
-                        <Button onClick={() => downloadFile(announcement.file)}>Download Image</Button>
-                      </div>
-                    ) : /\.(pdf)$/i.test(announcement.file) ? (
-                      <div className="mt-4 flex gap-4 items-center">
-                        <a href={announcement.file} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
-                          📎 PDF Attachment
-                        </a>
-                        <Button onClick={() => downloadFile(announcement.file)}>Download PDF</Button>
+            <CardContent className="space-y-2">
+              {isAdmin &&
+              project.projectState === "ongoing" &&
+              user?.role !== "member" ? (
+                <div className="space-y-4 mb-8 bg-white rounded-xl p-6 shadow dark:bg-black">
+                  <Label
+                    className="block font-semibold mb-2 dark:text-white"
+                    htmlFor="announcementMsg"
+                  >
+                    Post
+                  </Label>
+                  <Input
+                    id="announcementMsg"
+                    value={announcementMsg}
+                    onChange={(e) => setAnnouncementMsg(e.target.value)}
+                    placeholder="Enter your announcement for today"
+                    className="w-full border rounded px-4 py-2 mb-2"
+                  />
+                  <Label className="block font-semibold mb-2" htmlFor="postImg">
+                    Project Source
+                  </Label>
+                  <Input
+                    id="postImg"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+                    onChange={handleFileChangePost}
+                    className="w-full border rounded px-4 py-2 mb-2"
+                  />
+                  <Button
+                    onClick={handlePostAnnouncement}
+                    disabled={loadingUpdate}
+                    variant="secondary"
+                  >
+                    {loadingUpdate ? (
+                      <div className="flex w-full items-center">
+                        <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                        Posting...
                       </div>
                     ) : (
-                      <div className="mt-4 flex gap-4 items-center">
-                        <a href={announcement.file} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
-                          📎 File Attachment
-                        </a>
-                        <Button onClick={() => downloadFile(announcement.file)}>Download</Button>
-                      </div>
+                      "Post Announcement"
                     )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500">
+                  {!isUserAuthorized &&
+                    "You are not authorized to post announcements for this project."}
+                  {project.projectState === "completed" &&
+                    "This Project Completed."}
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter>
+              <CardContent className="px-0 w-full">
+                {isUserAuthorized ||
+                ["admin", "manager"].includes(user?.role) ? (
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-1 lg:grid-cols-2">
+                    {announcements.map((announcement) => (
+                      <Card
+                        key={announcement._id}
+                        className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"
+                      >
+                        <div className="flex items-center border-b pb-2 mb-2">
+                          <div className="w-10 h-10 flex-shrink-0">
+                            <UserHoverCard
+                              email={announcement.postedBy?.email}
+                            />
+                          </div>
+                          <div className="ml-2">
+                            <div className="font-semibold">
+                              {announcement.postedBy?.name || "Unknown User"}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {announcement.date
+                                ? new Date(announcement.date).toLocaleString()
+                                : ""}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {projectName || "Unknown Project"}
+                            </div>
+                          </div>
+
+                          {/* Delete button aligned to the right */}
+                          {(isAdmin || user?.role === "admin") && (
+                            <div className="ml-auto">
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="bg-red-500 hover:bg-red-700 text-white rounded-full"
+                                onClick={() =>
+                                  openDeleteModal(announcement._id)
+                                }
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="mb-4">Message: {announcement.msg}</p>
+
+                        {/* File attachment */}
+                        {announcement.file &&
+                          announcement.file !== "No Files" && (
+                            <div className="mb-4">
+                              {/\.(jpg|jpeg|png|gif|webp)$/i.test(
+                                announcement.file
+                              ) ? (
+                                <div>
+                                  <a
+                                    href={announcement.file}
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                  >
+                                    <Image
+                                      src={announcement.file}
+                                      alt="Announcement file"
+                                      width={200}
+                                      height={150}
+                                      className="rounded-lg object-cover mb-5"
+                                    />
+                                  </a>
+                                  <Button
+                                    onClick={() =>
+                                      downloadFile(announcement.file)
+                                    }
+                                  >
+                                    Download Image
+                                  </Button>
+                                </div>
+                              ) : /\.(pdf)$/i.test(announcement.file) ? (
+                                <div className="mt-4 flex gap-4 items-center">
+                                  <a
+                                    href={announcement.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline text-blue-600"
+                                  >
+                                    📎 PDF Attachment
+                                  </a>
+                                  <Button
+                                    onClick={() =>
+                                      downloadFile(announcement.file)
+                                    }
+                                  >
+                                    Download PDF
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="mt-4 flex gap-4 items-center">
+                                  <a
+                                    href={announcement.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline text-blue-600"
+                                  >
+                                    📎 File Attachment
+                                  </a>
+                                  <Button
+                                    onClick={() =>
+                                      downloadFile(announcement.file)
+                                    }
+                                  >
+                                    Download
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500">
+                    {!isUserAuthorized &&
+                      "You are not authorized to view announcements for this project."}
+                    {project.projectState === "completed" &&
+                      "This Project Completed."}
                   </div>
                 )}
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center text-gray-500">
-            {!isUserAuthorized && "You are not authorized to view announcements for this project."}
-            {project.projectState === "completed" && "This Project Completed."}
-          </div>
-        )}
-      </CardContent>
-    </CardFooter>
+              </CardContent>
+            </CardFooter>
 
-    {/* ✅ Single Delete Modal here */}
-    <DeleteProjectModal
-      isOpen={isModalOpen}
-       toggle={() => setIsModalOpen(prev => !prev)}
-      projectName="Delete Announcement"
-      loading={loadingUpdate}
-      onCancel={() => setIsModalOpen(false)}
-      onConfirm={confirmDelete}
-    />
-  </Card>
-</TabsContent>
-
+            {/* ✅ Single Delete Modal here */}
+            <DeleteProjectModal
+              isOpen={isDeleteModalOpen}
+              toggle={() => setIsDeleteModalOpen((prev) => !prev)}
+              projectName="Delete Announcement"
+              loading={loadingUpdate}
+              onCancel={() => setIsDeleteModalOpen(false)}
+              onConfirm={confirmDelete}
+            />
+          </Card>
+        </TabsContent>
 
         {/* -------------------Manage-Task---------------------- */}
         <TabsContent value="manage-tasks">
@@ -1025,7 +1077,7 @@ const toInputDate = (dateStr) => {
             projectName={project.projectName} // pass projectName here
             currentUser={user}
             onTaskCreated={refreshTasks}
-            socket={socket} 
+            socket={socket}
           />
         </TabsContent>
       </Tabs>

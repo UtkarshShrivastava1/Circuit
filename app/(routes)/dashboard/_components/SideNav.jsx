@@ -1,14 +1,14 @@
-'use client';
-import React, { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { MdNotifications } from 'react-icons/md';
-import { ImUserPlus } from 'react-icons/im';
-import { FaFileCirclePlus, FaCopy } from 'react-icons/fa6';
-import { RiFolderChartFill } from 'react-icons/ri';
-import { HiMiniUserGroup } from 'react-icons/hi2';
-import { BsCalendarCheck, BsClipboardCheck } from 'react-icons/bs';
+"use client";
+import React, { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { MdNotifications } from "react-icons/md";
+import { ImUserPlus } from "react-icons/im";
+import { FaFileCirclePlus, FaCopy } from "react-icons/fa6";
+import { RiFolderChartFill } from "react-icons/ri";
+import { HiMiniUserGroup } from "react-icons/hi2";
+import { BsCalendarCheck, BsClipboardCheck } from "react-icons/bs";
 
 function SideNav({ setIsMobileSidebarOpen }) {
   const [userRole, setUserRole] = useState(null);
@@ -40,28 +40,77 @@ function SideNav({ setIsMobileSidebarOpen }) {
 
   // Menu entries for all roles
   const baseMenu = [
-    { id: 1, name: "My Projects", path: "/dashboard", icon: <FaCopy className="text-xl" /> },
-    { id: 2, name: "All Projects", path: "/dashboard/projects", icon: <RiFolderChartFill className="text-xl" /> },
-    { id: 3, name: "Notifications", path: "/dashboard/notifications", icon: <MdNotifications className="text-xl" /> },
-    { id: 5, name: "Attendance", path: "/dashboard/attendance-management", icon: <BsClipboardCheck className="text-xl" /> },
-    { id: 4, name: "Members", path: "/dashboard/profiles", icon: <HiMiniUserGroup className="text-xl" /> },
-    { id: 7, name: "Manage Tasks", path: "/dashboard/manage-tasks", icon: <RiFolderChartFill className="text-xl" /> },
-    { id: 10, name: "Leave Management", path: "/dashboard/leave", icon: <BsCalendarCheck className="text-xl" /> },
+    {
+      id: 1,
+      name: "My Projects",
+      path: "/dashboard",
+      icon: <FaCopy className="text-xl" />,
+    },
+    {
+      id: 2,
+      name: "All Projects",
+      path: "/dashboard/projects",
+      icon: <RiFolderChartFill className="text-xl" />,
+    },
+    {
+      id: 3,
+      name: "Notifications",
+      path: "/dashboard/notifications",
+      icon: <MdNotifications className="text-xl" />,
+    },
+    {
+      id: 5,
+      name: "Attendance",
+      path: "/dashboard/attendance-management",
+      icon: <BsClipboardCheck className="text-xl" />,
+    },
+    {
+      id: 4,
+      name: "Members",
+      path: "/dashboard/profiles",
+      icon: <HiMiniUserGroup className="text-xl" />,
+    },
+    {
+      id: 7,
+      name: "Manage Tasks",
+      path: "/dashboard/manage-tasks",
+      icon: <RiFolderChartFill className="text-xl" />,
+    },
+    {
+      id: 10,
+      name: "Leave Management",
+      path: "/dashboard/leave",
+      icon: <BsCalendarCheck className="text-xl" />,
+    },
   ];
-
 
   // Manager and admin only
   const managerMenu = [
-    
-    { id: 8, name: "Create Project", path: "/dashboard/create-project", icon: <FaFileCirclePlus className="text-xl" /> },
-    { id: 9, name: "Add New User", path: "/dashboard/create", icon: <ImUserPlus className="text-xl" /> },
+    {
+      id: 8,
+      name: "Create Project",
+      path: "/dashboard/create-project",
+      icon: <FaFileCirclePlus className="text-xl" />,
+    },
+    {
+      id: 9,
+      name: "Add New User",
+      path: "/dashboard/create",
+      icon: <ImUserPlus className="text-xl" />,
+    },
+    {
+      id: 11,
+      name: "Create Task",
+      path: "/dashboard/manage-tasks/create/select-project",
+      icon: <RiFolderChartFill className="text-xl" />,
+    },
   ];
 
   // Build menu list based on user role
   let menuList = [...baseMenu];
-  if (userRole === "member") menuList = [...baseMenu, ];
-  if (userRole === "manager") menuList = [...baseMenu,  ...managerMenu];
-  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu,];
+  if (userRole === "member") menuList = [...baseMenu];
+  if (userRole === "manager") menuList = [...baseMenu, ...managerMenu];
+  if (userRole === "admin") menuList = [...baseMenu, ...managerMenu];
 
   // Loading state
   if (loading) {
@@ -79,7 +128,7 @@ function SideNav({ setIsMobileSidebarOpen }) {
 
   // Close sidebar on mobile after menu click
   const handleMenuClick = () => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
       setIsMobileSidebarOpen(false);
     }
   };
@@ -97,9 +146,10 @@ function SideNav({ setIsMobileSidebarOpen }) {
             height={40}
             priority
           />
-          <h1 
-            style={{ fontFamily: 'Big Shoulders Stencil, cursive' }}
-            className="text-xl font-bold text-gray-800 dark:text-white">
+          <h1
+            style={{ fontFamily: "Big Shoulders Stencil, cursive" }}
+            className="text-xl font-bold text-gray-800 dark:text-white"
+          >
             Circuit
           </h1>
         </div>
@@ -112,16 +162,21 @@ function SideNav({ setIsMobileSidebarOpen }) {
             key={menu.id}
             href={menu.path}
             onClick={handleMenuClick}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-slate-800 ${path === menu.path ? "bg-blue-500 text-white hover:bg-blue-600" : ""}`}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-slate-800 ${
+              path === menu.path
+                ? "bg-blue-500 text-white hover:bg-blue-600"
+                : ""
+            }`}
           >
             <span className="text-2xl">{menu.icon}</span>
-            <span className="font-medium text-sm md:text-base">{menu.name}</span>
+            <span className="font-medium text-sm md:text-base">
+              {menu.name}
+            </span>
           </Link>
         ))}
       </div>
     </nav>
   );
-
 }
 
 export default SideNav;
