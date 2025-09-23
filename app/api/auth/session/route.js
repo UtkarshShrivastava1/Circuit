@@ -18,11 +18,11 @@ export async function POST(req) {
       password === process.env.ADMIN_PASSWORDD_DEFAULT
     ) {
       let adminUser = await User.findOne({
-        email: process.env.ADMIN_EMAILD_DEFAULT,
+        email: process.env.ADMIN_EMAIL_DEFAULT,
       });
       if (!adminUser) {
         adminUser = await User.create({
-          email: process.env.ADMIN_EMAILD_DEFAULT,
+          email: process.env.ADMIN_EMAIL_DEFAULT,
           name: "Admin User",
           role: "admin",
           profileState: "active",
