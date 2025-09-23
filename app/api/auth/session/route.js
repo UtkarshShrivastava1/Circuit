@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import dbConnect from '@/lib/mongodb';
-import User from '@/app/models/User';
-import bcrypt from 'bcryptjs';
-import { signToken } from '@/lib/auth';
-import { setSession, getSession, deleteSession } from '@/lib/session';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import dbConnect from "@/lib/mongodb";
+import User from "@/app/models/User";
+import bcrypt from "bcryptjs";
+import { signToken } from "@/lib/auth";
+import { setSession, getSession, deleteSession } from "@/lib/session";
 
 // LOGIN HANDLER
 export async function POST(req) {
@@ -13,19 +13,24 @@ export async function POST(req) {
     const { email, password } = await req.json();
 
     // 1. Admin Login
-    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-      let adminUser = await User.findOne({ email: process.env.ADMIN_EMAIL });
+    if (
+      email === process.env.ADMIN_EMAIL_DEFAULT &&
+      password === process.env.ADMIN_PASSWORDD_DEFAULT
+    ) {
+      let adminUser = await User.findOne({
+        email: process.env.ADMIN_EMAILD_DEFAULT,
+      });
       if (!adminUser) {
         adminUser = await User.create({
-          email: process.env.ADMIN_EMAIL,
-          name: 'Admin User',
-          role: 'admin',
-          profileState: 'active',
-          password: await bcrypt.hash('dummy-password', 10),
-          gender: 'other',
-          phoneNumber: '0000000000',
-          dateOfBirth: '1990-01-01',
-          profileImgUrl: '/user.png',
+          email: process.env.ADMIN_EMAILD_DEFAULT,
+          name: "Admin User",
+          role: "admin",
+          profileState: "active",
+          password: await bcrypt.hash("dummy-password", 10),
+          gender: "other",
+          phoneNumber: "0000000000",
+          dateOfBirth: "1990-01-01",
+          profileImgUrl: "/user.png",
         });
       }
 
@@ -46,39 +51,42 @@ export async function POST(req) {
         role: adminUser.role,
       });
 
-      cookies().set('token', token, {
+      cookies().set("token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
         maxAge: 60 * 60 * 24,
-        path: '/',
+        path: "/",
       });
 
       return NextResponse.json({
         success: true,
         token,
-        role: 'admin',
+        role: "admin",
         user: adminSession,
       });
     }
 
     // 2. Regular User Login
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'Invalid credentials' },
+        { success: false, message: "Invalid credentials" },
         { status: 401 }
       );
     }
-    if (user.profileState !== 'active') {
+    if (user.profileState !== "active") {
       return NextResponse.json(
-        { success: false, message: `Your account is ${user.profileState}. Contact support.` },
+        {
+          success: false,
+          message: `Your account is ${user.profileState}. Contact support.`,
+        },
         { status: 403 }
       );
     }
     if (!(await bcrypt.compare(password, user.password))) {
       return NextResponse.json(
-        { success: false, message: 'Invalid credentials' },
+        { success: false, message: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -100,12 +108,12 @@ export async function POST(req) {
 
     await setSession(userSession);
 
-    cookies().set('token', token, {
+    cookies().set("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 60 * 60 * 24,
-      path: '/',
+      path: "/",
     });
 
     return NextResponse.json({
@@ -120,9 +128,9 @@ export async function POST(req) {
       },
     });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error("Login error:", err);
     return NextResponse.json(
-      { error: 'Authentication failed' },
+      { error: "Authentication failed" },
       { status: 500 }
     );
   }
@@ -132,7 +140,7 @@ export async function POST(req) {
 export async function GET() {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
   }
   return NextResponse.json({
     _id: session._id,
@@ -147,12 +155,12 @@ export async function GET() {
 // LOGOUT HANDLER
 export async function DELETE() {
   await deleteSession();
-  cookies().set('token', '', {
+  cookies().set("token", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
     maxAge: 0,
-    path: '/',
+    path: "/",
   });
-  return NextResponse.json({ message: 'Logged out' });
+  return NextResponse.json({ message: "Logged out" });
 }

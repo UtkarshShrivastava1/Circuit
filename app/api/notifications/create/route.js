@@ -6,17 +6,15 @@ export async function POST(req) {
 
   try {
     // ✅ Extract sender info from middleware headers
-    const fromEmail = req.headers.get("x-user-email") || process.env.ADMIN_EMAIL;
+    const fromEmail =
+      req.headers.get("x-user-email") || process.env.ADMIN_EMAIL_DEFAULT;
     const userRole = req.headers.get("x-user-role");
 
     if (!fromEmail) {
-      return new Response(
-        JSON.stringify({ error: "You must be logged in" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "You must be logged in" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // ✅ Extract body

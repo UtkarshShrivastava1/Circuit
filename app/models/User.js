@@ -147,7 +147,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Optional: indexes for faster lookups (email uniqueness enforced above already)
-userSchema.index({ email: 1 }, { unique: true });
+// userSchema.index({ email: 1 }, { unique: true }); // Removed duplicate index
 
 // Export existing model if present (avoid OverwriteModelError in dev)
 const User = mongoose.models.User || mongoose.model("User", userSchema);

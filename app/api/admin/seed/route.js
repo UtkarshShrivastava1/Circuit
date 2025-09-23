@@ -7,15 +7,15 @@ export async function POST() {
   try {
     await dbConnect();
 
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminEmail = process.env.ADMIN_EMAIL_DEFAULT;
+    const adminPassword = process.env.ADMIN_PASSWORD_DEFAULT;
 
     // Check if admin already exists
     const existingAdmin = await User.findOne({ email: adminEmail });
     if (existingAdmin) {
       return NextResponse.json({
         message: "✅ Admin already exists",
-        user: { _id: existingAdmin._id, email: existingAdmin.email }
+        user: { _id: existingAdmin._id, email: existingAdmin.email },
       });
     }
 
@@ -32,12 +32,12 @@ export async function POST() {
       gender: "other",
       phoneNumber: "0000000000",
       dateOfBirth: "1990-01-01",
-      profileImgUrl: "/user.png"
+      profileImgUrl: "/user.png",
     });
 
     return NextResponse.json({
       message: "✅ Admin user created successfully",
-      user: { _id: adminUser._id, email: adminUser.email }
+      user: { _id: adminUser._id, email: adminUser.email },
     });
   } catch (error) {
     console.error("Admin creation error:", error);
