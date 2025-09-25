@@ -35,7 +35,7 @@ import Loading from "../../../_components/Loading";
 const UpdateProject = () => {
   const [formData, setFormData] = useState({
     projectName: "",
-    projectState: "ongoing",
+    projectState: "ongoing", // default value
     projectDomain: "",
     startDate: "",
     endDate: "",
@@ -58,13 +58,26 @@ const UpdateProject = () => {
   useEffect(() => {
     async function fetchSessionAndData() {
       try {
+        // Fetch session (no token used here — server should read cookie or header)
         const sessionRes = await fetch("/api/auth/session");
         if (!sessionRes.ok) throw new Error("Not authenticated");
         const userData = await sessionRes.json();
-        setCurrentUserRole(userData.role);
+        setCurrentUserRole(userData.role || "");
 
-        const projectSlug = pathname.split("/")[3];
+        // robustly extract project slug from pathname
+        // example pathname: /dashboard/projects/<slug>/update
+        const parts = (pathname || "").split("/").filter(Boolean);
+        // look for "projects" in path and take next segment as slug
+        const projectsIndex = parts.findIndex((p) => p === "projects");
+        const projectSlug =
+          projectsIndex >= 0 && parts.length > projectsIndex + 1
+            ? parts[projectsIndex + 1]
+            : parts[2] || ""; // fallback (older index approach)
 
+        if (!projectSlug)
+          throw new Error("Project identifier not found in URL");
+
+        // Fetch project details
         const projectRes = await fetch(
           `/api/projects/${encodeURIComponent(projectSlug)}`
         );
@@ -72,9 +85,9 @@ const UpdateProject = () => {
         const projectData = await projectRes.json();
 
         setFormData({
-          projectName: projectData.projectName,
-          projectState: projectData.projectState,
-          projectDomain: projectData.projectDomain,
+          projectName: projectData.projectName || "",
+          projectState: projectData.projectState || "ongoing",
+          projectDomain: projectData.projectDomain || "",
           startDate: projectData.startDate
             ? projectData.startDate.split("T")[0]
             : "",
@@ -82,22 +95,29 @@ const UpdateProject = () => {
         });
         setParticipants(projectData.participants || []);
 
+        // Fetch users list for participant picker
         const usersRes = await fetch("/api/user");
         if (!usersRes.ok) throw new Error("Failed fetching users");
         const users = await usersRes.json();
-        setAllUsers(users);
-        setEmailOptions(users.map((u) => ({ value: u.email, label: u.email })));
+        setAllUsers(Array.isArray(users) ? users : []);
+        setEmailOptions(
+          (Array.isArray(users) ? users : []).map((u) => ({
+            value: u.email,
+            label: u.email,
+          }))
+        );
       } catch (err) {
-        setError(err.message);
+        setError(err.message || "Failed to load");
         if (err.message === "Not authenticated") {
           router.push("/login");
         } else {
-          toast.error(err.message);
+          toast.error(err.message || "Failed to load data");
         }
       }
     }
     fetchSessionAndData();
-  }, [pathname, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   useEffect(() => {
     if (currentUserRole === "member") {
@@ -137,10 +157,11 @@ const UpdateProject = () => {
       email: selectedUser,
       roleInProject: selectedRole,
       responsibility: selectedResponsibility,
-      profileImage: selectedUserData?.profileImgUrl,
-      userRole: selectedUserData?.role,
-      username: selectedUserData?.name,
-      userId: selectedUserData,
+      profileImage: selectedUserData?.profileImgUrl || null,
+      userRole: selectedUserData?.role || null,
+      username: selectedUserData?.name || selectedUser,
+      // keep only id for backend (not the full object)
+      userId: selectedUserData?._id || null,
     };
 
     setParticipants((prev) => [...prev, newEntry]);
@@ -167,8 +188,14 @@ const UpdateProject = () => {
     }
 
     try {
-      // Use the slug from the URL (same one used to GET the project)
-      const projectSlug = pathname.split("/")[3];
+      // derive project slug same as fetch
+      const parts = (pathname || "").split("/").filter(Boolean);
+      const projectsIndex = parts.findIndex((p) => p === "projects");
+      const projectSlug =
+        projectsIndex >= 0 && parts.length > projectsIndex + 1
+          ? parts[projectsIndex + 1]
+          : parts[2] || "";
+
       if (!projectSlug) {
         throw new Error("Project identifier not found in URL");
       }
@@ -195,15 +222,13 @@ const UpdateProject = () => {
       );
 
       if (!res.ok) {
-        // read any JSON error, but also log raw body for debugging 404s
+        // robust error extraction
         let errorText = "";
         try {
           const json = await res.json();
           errorText = json.message || json.error || JSON.stringify(json);
         } catch (parseErr) {
-          errorText = await res
-            .text()
-            .catch(() => "Failed to parse error response");
+          errorText = await res.text().catch(() => "Failed to parse error");
         }
         const status = res.status;
         console.error("Project update failed", { status, errorText });
@@ -221,8 +246,8 @@ const UpdateProject = () => {
       toast.success("Project updated successfully!");
       router.push("/dashboard/projects");
     } catch (err) {
-      setError(err.message);
-      toast.error(`Error updating project: ${err.message}`);
+      setError(err.message || "Update failed");
+      toast.error(`Error updating project: ${err.message || err}`);
       console.error("handleSubmit error:", err);
     } finally {
       setLoading(false);
@@ -242,6 +267,7 @@ const UpdateProject = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
+      <ToastContainer position="top-right" />
       <h2 className="text-2xl font-bold mb-6 text-center">Update Project</h2>
       <Card>
         <CardHeader>
@@ -273,6 +299,8 @@ const UpdateProject = () => {
                 <option value="ongoing">Ongoing</option>
                 <option value="deployment">Deployment</option>
                 <option value="completed">Completed</option>
+                <option value="paused">Paused</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
 
@@ -353,12 +381,14 @@ const UpdateProject = () => {
                             placeholder="Search user..."
                             className="h-9"
                             onChange={(e) => {
-                              const val = e.target.value.toLowerCase();
-                              const opts = allUsers
+                              const val = (e.target.value || "").toLowerCase();
+                              const opts = (allUsers || [])
                                 .filter(
                                   (user) =>
-                                    user.email.toLowerCase().includes(val) ||
-                                    (user.name ?? "")
+                                    (user.email || "")
+                                      .toLowerCase()
+                                      .includes(val) ||
+                                    (user.name || "")
                                       .toLowerCase()
                                       .includes(val)
                                 )
@@ -374,7 +404,7 @@ const UpdateProject = () => {
                             <CommandGroup>
                               {(emailOptions.length
                                 ? emailOptions
-                                : allUsers.map((u) => ({
+                                : (allUsers || []).map((u) => ({
                                     value: u.email,
                                     label: u.email,
                                   }))
@@ -387,9 +417,11 @@ const UpdateProject = () => {
                                   <div className="flex items-center space-x-4">
                                     <Image
                                       src={
-                                        allUsers.find(
-                                          (u) => u.email === option.value
-                                        )?.profileImgUrl || "/user.png"
+                                        (
+                                          allUsers.find(
+                                            (u) => u.email === option.value
+                                          ) || {}
+                                        ).profileImgUrl || "/user.png"
                                       }
                                       alt="User Avatar"
                                       width={40}
@@ -398,18 +430,24 @@ const UpdateProject = () => {
                                     />
                                     <div className="flex-1">
                                       <div className="font-semibold">
-                                        {allUsers.find(
-                                          (u) => u.email === option.value
-                                        )?.name || "Unknown User"}
+                                        {(
+                                          allUsers.find(
+                                            (u) => u.email === option.value
+                                          ) || {}
+                                        ).name || "Unknown User"}
                                       </div>
                                       <div className="text-sm text-gray-600">
-                                        {allUsers.find(
-                                          (u) => u.email === option.value
-                                        )?.email || option.value}
+                                        {(
+                                          allUsers.find(
+                                            (u) => u.email === option.value
+                                          ) || {}
+                                        ).email || option.value}
                                         <br />
-                                        {allUsers.find(
-                                          (u) => u.email === option.value
-                                        )?.role || "No Role"}
+                                        {(
+                                          allUsers.find(
+                                            (u) => u.email === option.value
+                                          ) || {}
+                                        ).role || "No Role"}
                                       </div>
                                     </div>
                                   </div>
@@ -549,8 +587,6 @@ const UpdateProject = () => {
           </CardFooter>
         </form>
       </Card>
-
-      {/* <ToastContainer /> */}
     </div>
   );
 };

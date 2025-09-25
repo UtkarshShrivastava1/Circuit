@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Loading from "../_components/Loading";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
@@ -30,6 +31,10 @@ export default function CreateUser() {
   const [loading, setLoading] = useState(true);
   const [loadingBtn, setLoadingBtn] = useState(false);
 
+  // Password visibility toggles
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   // Fetch current user role from your backend session API
   useEffect(() => {
     async function fetchUserRole() {
@@ -46,7 +51,7 @@ export default function CreateUser() {
         router.push("/login");
       } finally {
         setLoading(false);
-      } 
+      }
     }
     fetchUserRole();
   }, [router]);
@@ -82,10 +87,10 @@ export default function CreateUser() {
       const uploadData = await res.json();
       setFormData((prev) => ({
         ...prev,
-        profileImgUrl: uploadData.url, // Cloudinary URL
+        profileImgUrl: uploadData.url, // Cloudinary URL or similar
       }));
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Upload failed");
     } finally {
       setLoadingBtn(false);
     }
@@ -158,13 +163,18 @@ export default function CreateUser() {
         setError(result.error || "Error creating user");
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Network error");
     } finally {
       setLoadingBtn(false);
     }
   };
 
-  if (loading) return <div className="text-center"><Loading message="Loading"/></div>;
+  if (loading)
+    return (
+      <div className="text-center">
+        <Loading message="Loading" />
+      </div>
+    );
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-900 rounded-lg shadow-md">
@@ -200,7 +210,10 @@ export default function CreateUser() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <Label htmlFor="name" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="name"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Name
             </Label>
             <Input
@@ -215,7 +228,10 @@ export default function CreateUser() {
             />
           </div>
           <div>
-            <Label htmlFor="email" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="email"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Email
             </Label>
             <Input
@@ -230,12 +246,17 @@ export default function CreateUser() {
               autoComplete="new-password"
             />
           </div>
-          <div>
-            <Label htmlFor="password" className="block mb-1 text-gray-600 dark:text-gray-300">
+
+          {/* Password with eye toggle */}
+          <div className="relative">
+            <Label
+              htmlFor="password"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Password
             </Label>
             <Input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="password"
               name="password"
               placeholder="Make strong password"
@@ -245,13 +266,26 @@ export default function CreateUser() {
               required
               autoComplete="new-password"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((p) => !p)}
+              className="absolute right-3 top-9 text-gray-500"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
-          <div>
-            <Label htmlFor="confirmPassword" className="block mb-1 text-gray-600 dark:text-gray-300">
+
+          {/* Confirm Password with eye toggle */}
+          <div className="relative">
+            <Label
+              htmlFor="confirmPassword"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Confirm Password
             </Label>
             <Input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               id="confirmPassword"
               name="confirmPassword"
               placeholder="Confirm your password"
@@ -260,12 +294,27 @@ export default function CreateUser() {
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-gray-300"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((p) => !p)}
+              className="absolute right-3 top-9 text-gray-500"
+              aria-label={
+                showConfirmPassword
+                  ? "Hide confirm password"
+                  : "Show confirm password"
+              }
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <Label htmlFor="gender" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="gender"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Gender
             </Label>
             <select
@@ -283,7 +332,10 @@ export default function CreateUser() {
             </select>
           </div>
           <div>
-            <Label htmlFor="dateOfBirth" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="dateOfBirth"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Date of Birth
             </Label>
             <Input
@@ -300,7 +352,10 @@ export default function CreateUser() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <div>
-            <Label htmlFor="phoneNumber" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="phoneNumber"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Phone Number
             </Label>
             <Input
@@ -315,7 +370,10 @@ export default function CreateUser() {
             />
           </div>
           <div>
-            <Label htmlFor="role" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="role"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Role
             </Label>
             <select
@@ -328,11 +386,16 @@ export default function CreateUser() {
             >
               <option value="member">Member</option>
               <option value="manager">Manager</option>
-              {currentUserRole === "admin" && <option value="admin">Admin</option>}
+              {currentUserRole === "admin" && (
+                <option value="admin">Admin</option>
+              )}
             </select>
           </div>
           <div>
-            <Label htmlFor="profileState" className="block mb-1 text-gray-600 dark:text-gray-300">
+            <Label
+              htmlFor="profileState"
+              className="block mb-1 text-gray-600 dark:text-gray-300"
+            >
               Profile State
             </Label>
             <select
@@ -350,7 +413,9 @@ export default function CreateUser() {
         </div>
 
         {error && (
-          <div className="mb-4 p-2 text-red-700 bg-red-100 rounded">{error}</div>
+          <div className="mb-4 p-2 text-red-700 bg-red-100 rounded">
+            {error}
+          </div>
         )}
 
         <Button

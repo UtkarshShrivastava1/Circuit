@@ -15,13 +15,13 @@ const participantSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  roleInProject: { 
-    type: String, 
-    required: true, 
+  roleInProject: {
+    type: String,
+    required: true,
   }, // e.g. "frontend", "tester", etc.
-  responsibility: { 
-    type: String, 
-    required: true, 
+  responsibility: {
+    type: String,
+    required: true,
   },
 });
 
@@ -34,8 +34,8 @@ const announcementSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true },
   },
-   file: { type: String, default: "No Files" },
-    originalName: {type: String}, 
+  file: { type: String, default: "No Files" },
+  originalName: { type: String },
 });
 
 // Main project schema
@@ -50,7 +50,7 @@ const projectSchema = new mongoose.Schema(
     },
     projectState: {
       type: String,
-      enum: ["ongoing", "completed", "paused", "cancelled"],
+      enum: ["ongoing", "deployment", "completed", "paused", "cancelled"],
       default: "ongoing",
     },
     projectDomain: {
@@ -61,7 +61,7 @@ const projectSchema = new mongoose.Schema(
     startDate: { type: Date, required: true },
     endDate: { type: Date },
 
-    // Manager reference 
+    // Manager reference
     manager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -72,10 +72,11 @@ const projectSchema = new mongoose.Schema(
 
     // Add announcements array (embedded subdocuments)
     announcements: { type: [announcementSchema], default: [] },
-},
+  },
   { timestamps: true }
-); 
+);
 
-const Project = mongoose.models.Project || mongoose.model("Project", projectSchema);
+const Project =
+  mongoose.models.Project || mongoose.model("Project", projectSchema);
 
 export default Project;

@@ -1,5 +1,7 @@
+// app/dashboard/manage-tasks/page.jsx
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -9,12 +11,10 @@ import { Loader2, X, Eye, Trash2, User, Calendar, Tag } from "lucide-react";
 function ManageAllTasks() {
   const router = useRouter();
   const params = useParams();
-  const { taskId } = params;
+  const { taskId } = params || {};
   const searchParams = useSearchParams();
-  const taskIdfromserchaParam = searchParams.get("taskId");
-  const projectName = searchParams.get("projectName") || "";
-
-   console.log("projectName : ",projectName);
+  const taskIdFromSearchParam = searchParams?.get("taskId");
+  const projectName = searchParams?.get("projectName") || "";
 
   const [activeTab, setActiveTab] = useState("tasks");
   const [tasks, setTasks] = useState([]);
@@ -23,6 +23,7 @@ function ManageAllTasks() {
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [error, setError] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [userId, setUserId] = useState(null); // logged in user's id
 
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -33,20 +34,24 @@ function ManageAllTasks() {
   // Responsive state
   const [isMobile, setIsMobile] = useState(false);
 
+  // Ref to hold the latest fetch function for polling
+  const fetchRef = useRef(null);
+  // Poll interval (ms)
+  const POLL_INTERVAL = 10000;
+
   // Check screen size
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
-
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // User checking with better error handling
+  // Load user role + id
   useEffect(() => {
+    let mounted = true;
     async function fetchUserRole() {
       try {
         const token = localStorage.getItem("token");
@@ -65,23 +70,79 @@ function ManageAllTasks() {
 
         if (res.ok) {
           const data = await res.json();
-          setUserRole(data.role);
+          if (mounted) {
+            setUserRole(data.role);
+            const id = data.id || data._id || data.userId || null;
+            setUserId(id ? String(id) : null);
+          }
         } else {
           localStorage.removeItem("token");
           router.push("/login");
         }
-      } catch (error) {
-        console.error("Auth error:", error);
+      } catch (err) {
+        console.error("Auth error:", err);
         localStorage.removeItem("token");
         router.push("/login");
       }
     }
     fetchUserRole();
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
-  // Enhanced data fetching with retry logic
-  useEffect(() => {
-    async function fetchData(retryCount = 0) {
+  // Helper: find parent task id for a ticket by scanning tasks (coerce to string)
+  const findParentTaskId = useCallback(
+    (ticketId) => {
+      if (!ticketId) return null;
+      const tid = String(ticketId);
+      for (const t of tasks) {
+        if (
+          Array.isArray(t.tickets) &&
+          t.tickets.some((tt) => String(tt._id || tt.id) === tid)
+        ) {
+          return String(t._id || t.id);
+        }
+      }
+      return null;
+    },
+    [tasks]
+  );
+
+  // Helper to transform and filter tickets for UI
+  const transformAndFilterTickets = useCallback(
+    (tasksList) => {
+      const allTickets = (tasksList || []).flatMap((task) =>
+        (task.tickets || []).map((ticket) => ({
+          ...ticket,
+          parentTaskId: task._id || task.id || null,
+        }))
+      );
+
+      // if user is admin/manager -> see all
+      if (!userRole || userRole !== "member" || !userId) {
+        return allTickets.slice().reverse();
+      }
+
+      // member -> only assigned tickets
+      const visible = allTickets.filter((t) => {
+        if (!t) return false;
+        const assigned = t.assignedTo;
+        if (!assigned) return false;
+        const aid =
+          (assigned._id && String(assigned._id)) ||
+          (assigned.id && String(assigned.id)) ||
+          (typeof assigned === "string" ? String(assigned) : null);
+        return aid && String(aid) === String(userId);
+      });
+      return visible.slice().reverse();
+    },
+    [userRole, userId]
+  );
+
+  // Primary fetch logic (kept in a ref to reuse from polling/visibility)
+  const fetchData = useCallback(
+    async (retryCount = 0, signal = undefined) => {
       const token = localStorage.getItem("token");
       if (!token) {
         router.push("/login");
@@ -93,14 +154,9 @@ function ManageAllTasks() {
         setTicketsLoading(true);
         setError("");
 
-        // Fetch tasks with proper error handling
-        // let apiUrl = "/api/tasks";
-        // if (projectName.trim()) {
-        //   apiUrl += `?projectId=${encodeURIComponent(projectName)}`;
-        // }
-
         const resTasks = await fetch("/api/tasks", {
           method: "GET",
+          signal,
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -117,58 +173,138 @@ function ManageAllTasks() {
         }
 
         const tasksData = await resTasks.json();
-        setTasks(Array.isArray(tasksData) ? tasksData.slice().reverse() : []);
+        const tasksList = Array.isArray(tasksData)
+          ? tasksData.slice().reverse()
+          : [];
+        setTasks(tasksList);
 
-       
+        const effectiveTaskId = taskId || taskIdFromSearchParam || null;
+        if (effectiveTaskId) {
+          // Try to fetch tickets for that task specifically (server may enforce permissions)
+          try {
+            const resTickets = await fetch(
+              `/api/tasks/${effectiveTaskId}/tickets`,
+              {
+                method: "GET",
+                signal,
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
 
-        // Extract tickets from all tasks
-        const allTickets = tasksData.flatMap((task) => task.tickets || []);
-        setTickets(allTickets.slice().reverse());
-
-        setError("");
+            if (resTickets.ok) {
+              const ticketsData = await resTickets.json();
+              const withParent = (
+                Array.isArray(ticketsData) ? ticketsData : []
+              ).map((t) => ({
+                ...t,
+                parentTaskId: effectiveTaskId,
+              }));
+              setTickets(
+                transformAndFilterTickets([
+                  { _id: effectiveTaskId, tickets: withParent },
+                ])
+              );
+            } else if (resTickets.status === 401) {
+              localStorage.removeItem("token");
+              router.push("/login");
+              return;
+            } else {
+              setTickets(transformAndFilterTickets(tasksList));
+            }
+          } catch (err) {
+            console.warn("Error fetching task-specific tickets:", err);
+            setTickets(transformAndFilterTickets(tasksList));
+          }
+        } else {
+          setTickets(transformAndFilterTickets(tasksList));
+        }
       } catch (err) {
+        if (err.name === "AbortError") return;
         console.error("Fetch error:", err);
         const errorMessage = err.message || "Failed to load data";
         setError(errorMessage);
 
-        // Retry logic for network errors
+        // retry network-like errors (up to 2)
         if (
           retryCount < 2 &&
-          (err.name === "NetworkError" || err.message.includes("fetch"))
+          (err.name === "TypeError" || err.message.includes("fetch"))
         ) {
-          setTimeout(() => fetchData(retryCount + 1), 2000);
+          setTimeout(() => fetchData(retryCount + 1, signal), 2000);
           return;
         }
-
         toast.error(errorMessage);
       } finally {
         setTasksLoading(false);
         setTicketsLoading(false);
       }
-    }
+    },
+    [router, taskId, taskIdFromSearchParam, transformAndFilterTickets]
+  );
 
-    if (userRole) {
-      fetchData();
-    }
-  }, [router, projectName, userRole]);
+  // store fetchData ref for polling use
+  useEffect(() => {
+    fetchRef.current = fetchData;
+  }, [fetchData]);
+
+  // initial load + polling with visibility pause
+  useEffect(() => {
+    const ac = new AbortController();
+    // call immediately
+    fetchData(0, ac.signal);
+
+    let intervalId = null;
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        // call latest fetch function
+        if (fetchRef.current) fetchRef.current(0);
+      }, POLL_INTERVAL);
+    };
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    // start polling
+    startPolling();
+
+    // pause on visibility hidden to save bandwidth
+    const handleVisibility = () => {
+      if (document.hidden) stopPolling();
+      else startPolling();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      ac.abort();
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+    // userRole included because we shouldn't start polling before we know role (transform)
+  }, [fetchData, userRole]);
 
   const switchTab = (tab) => setActiveTab(tab);
 
   // Show confirmation modal
-  function confirmDeleteTicket(id) {
+  const confirmDeleteTicket = useCallback((id) => {
     setTicketToDelete(id);
     setShowDeleteModal(true);
-  }
+  }, []);
 
   // Cancel deletion
-  function handleDeleteCancel() {
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
     setTicketToDelete(null);
     setDeleteError("");
-  }
+  }, []);
 
-  // Enhanced delete function with better error handling
-  async function handleDeleteConfirm() {
+  // Delete ticket
+  const handleDeleteConfirm = useCallback(async () => {
     if (!ticketToDelete) return;
     setDeletingTicket(true);
     setDeleteError("");
@@ -180,13 +316,21 @@ function ManageAllTasks() {
         return;
       }
 
-      const res = await fetch(`/api/ticket/${ticketToDelete}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const effectiveTaskId =
+        taskId || taskIdFromSearchParam || findParentTaskId(ticketToDelete);
+      if (!effectiveTaskId)
+        throw new Error("Unable to determine parent task for this ticket");
+
+      const res = await fetch(
+        `/api/tasks/${effectiveTaskId}/tickets/${ticketToDelete}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -194,7 +338,6 @@ function ManageAllTasks() {
           router.push("/login");
           return;
         }
-
         const data = await res.json().catch(() => ({}));
         throw new Error(
           data.error || `HTTP ${res.status}: Failed to delete ticket`
@@ -202,9 +345,26 @@ function ManageAllTasks() {
       }
 
       toast.success("Ticket deleted successfully");
+
+      // update local state quickly (optimistic)
       setTickets((prev) =>
-        prev.filter((t) => t._id !== ticketToDelete && t.id !== ticketToDelete)
+        prev.filter((t) => String(t._id || t.id) !== String(ticketToDelete))
       );
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          const tid = String(t._id || t.id);
+          if (tid === String(effectiveTaskId)) {
+            return {
+              ...t,
+              tickets: (t.tickets || []).filter(
+                (tt) => String(tt._id || tt.id) !== String(ticketToDelete)
+              ),
+            };
+          }
+          return t;
+        })
+      );
+
       setShowDeleteModal(false);
       setTicketToDelete(null);
     } catch (err) {
@@ -215,19 +375,92 @@ function ManageAllTasks() {
     } finally {
       setDeletingTicket(false);
     }
-  }
+  }, [ticketToDelete, router, taskId, taskIdFromSearchParam, findParentTaskId]);
 
-  // Helper function to get project name from task
-  const getProjectName = (task) => {
-    return (
-      task.projectName ||
-      task.projectId?.projectName ||
-      task.projectId?.name ||
-      "Unknown Project"
-    );
+  // Change ticket status (PUT to API)
+  const handleChangeTicketStatus = async (ticket, newStatus) => {
+    if (!ticket || !ticket.parentTaskId)
+      return toast.error("Missing parent task id");
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+
+    try {
+      const res = await fetch(`/api/tasks/${ticket.parentTaskId}/tickets`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticketId: ticket._id || ticket.id,
+          status: newStatus,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to update status (${res.status})`);
+      }
+
+      // update local state
+      setTickets((prev) =>
+        prev.map((t) => {
+          if (String(t._id || t.id) === String(ticket._id || ticket.id)) {
+            return { ...t, status: newStatus };
+          }
+          return t;
+        })
+      );
+      toast.success("Ticket status updated");
+    } catch (err) {
+      console.error("Change status error:", err);
+      toast.error(err.message || "Failed to change ticket status");
+    }
   };
 
-  // Mobile card component for tasks
+  // Edit ticket: navigate to task view (you can change to an edit modal if desired)
+  const handleEditTicket = (ticket) => {
+    const parent =
+      ticket.parentTaskId || findParentTaskId(ticket._id || ticket.id);
+    if (parent)
+      router.push(
+        `/dashboard/manage-tasks/${parent}/open?ticketId=${
+          ticket._id || ticket.id
+        }`
+      );
+    else toast.error("Unable to locate parent task for editing");
+  };
+
+  // Helper to get project name
+  const getProjectName = (task) =>
+    task?.projectName ||
+    task?.projectId?.projectName ||
+    task?.projectId?.name ||
+    "Unknown Project";
+
+  // Determine permissions:
+  // - members: only change status on tickets assigned to them
+  // - admin/manager: full control (edit/delete/change status)
+  const canEditOrDelete = (ticket) => {
+    if (!ticket) return false;
+    return ["admin", "manager"].includes(userRole);
+  };
+  const canChangeStatus = (ticket) => {
+    if (!ticket) return false;
+    if (["admin", "manager"].includes(userRole)) return true;
+    if (userRole === "member" && userId) {
+      const assigned = ticket.assignedTo;
+      if (!assigned) return false;
+      const aid =
+        (assigned._id && String(assigned._id)) ||
+        (assigned.id && String(assigned.id)) ||
+        (typeof assigned === "string" ? String(assigned) : null);
+      return aid && String(aid) === String(userId);
+    }
+    return false;
+  };
+
+  // Task card (mobile)
   const TaskCard = ({ task }) => (
     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700 shadow-sm space-y-3">
       <div className="flex justify-between items-start">
@@ -240,9 +473,9 @@ function ManageAllTasks() {
           onClick={() =>
             router.push(`/dashboard/manage-tasks/${task._id}/open`)
           }
+          aria-label={`Open task ${task.title}`}
         >
-          <Eye className="w-4 h-4 mr-1" />
-          Open
+          <Eye className="w-4 h-4 mr-1" /> Open
         </Button>
       </div>
 
@@ -282,69 +515,100 @@ function ManageAllTasks() {
     </div>
   );
 
-  // Mobile card component for tickets
-  const TicketCard = ({ ticket }) => (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 pr-2">
-          {ticket.issueTitle}
-        </h3>
-        <button
-          onClick={() => confirmDeleteTicket(ticket._id)}
-          className="flex-shrink-0 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm transition-colors flex items-center"
-        >
-          <Trash2 className="w-4 h-4 mr-1" />
-          Delete
-        </button>
+  // Ticket card (mobile)
+  const TicketCard = ({ ticket }) => {
+    const allowStatus = canChangeStatus(ticket);
+    const allowEditDelete = canEditOrDelete(ticket);
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 pr-2">
+            {ticket.issueTitle}
+          </h3>
+          <div className="flex items-center gap-2">
+            {allowStatus ? (
+              <select
+                value={ticket.status || "open"}
+                onChange={(e) =>
+                  handleChangeTicketStatus(ticket, e.target.value)
+                }
+                className="rounded px-2 py-1 text-sm"
+              >
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            ) : (
+              <span className="text-xs text-gray-500">Status</span>
+            )}
+
+            {allowEditDelete && (
+              <>
+                <button
+                  onClick={() => handleEditTicket(ticket)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => confirmDeleteTicket(ticket._id || ticket.id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center">
+            <span className="font-medium mr-2">Status:</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                ticket.status === "pending"
+                  ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300"
+                  : "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300"
+              }`}
+            >
+              {ticket.status
+                ? ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)
+                : "Open"}
+            </span>
+          </div>
+
+          <div>
+            <span className="font-medium">Description:</span>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {ticket.description || "No description"}
+            </p>
+          </div>
+
+          <div className="flex justify-between">
+            <span>
+              <span className="font-medium">Priority:</span>{" "}
+              {ticket.priority
+                ? ticket.priority.charAt(0).toUpperCase() +
+                  ticket.priority.slice(1)
+                : "Normal"}
+            </span>
+            <span>
+              <span className="font-medium">Tag:</span> {ticket.tag || "None"}
+            </span>
+          </div>
+
+          <div>
+            <span className="font-medium">Assigned to:</span>{" "}
+            {ticket.assignedTo
+              ? ticket.assignedTo.name ||
+                ticket.assignedTo.username ||
+                ticket.assignedTo.email
+              : "Unassigned"}
+          </div>
+        </div>
       </div>
-
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center">
-          <span className="font-medium mr-2">Status:</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-              ticket.status === "pending"
-                ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300"
-                : "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300"
-            }`}
-          >
-            {ticket.status
-              ? ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)
-              : "Open"}
-          </span>
-        </div>
-
-        <div>
-          <span className="font-medium">Description:</span>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {ticket.description || "No description"}
-          </p>
-        </div>
-
-        <div className="flex justify-between">
-          <span>
-            <span className="font-medium">Priority:</span>{" "}
-            {ticket.priority
-              ? ticket.priority.charAt(0).toUpperCase() +
-                ticket.priority.slice(1)
-              : "Normal"}
-          </span>
-          <span>
-            <span className="font-medium">Tag:</span> {ticket.tag || "None"}
-          </span>
-        </div>
-
-        <div>
-          <span className="font-medium">Assigned to:</span>{" "}
-          {ticket.assignedTo
-            ? ticket.assignedTo.name ||
-              ticket.assignedTo.username ||
-              ticket.assignedTo.email
-            : "Unassigned"}
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
@@ -361,7 +625,7 @@ function ManageAllTasks() {
           )}
         </div>
 
-        {/* Tabs - Enhanced for mobile */}
+        {/* Tabs */}
         <div className="flex border-b border-gray-300 dark:border-slate-700 mb-6 overflow-x-auto">
           <div className="flex space-x-1 min-w-full sm:min-w-0">
             <button
@@ -387,7 +651,7 @@ function ManageAllTasks() {
           </div>
         </div>
 
-        {/* Error Display */}
+        {/* Error */}
         {error && (
           <div className="mb-6 p-4 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800">
             <div className="flex items-center">
@@ -397,7 +661,7 @@ function ManageAllTasks() {
           </div>
         )}
 
-        {/* Tasks Content */}
+        {/* Tasks content */}
         {activeTab === "tasks" && (
           <>
             {tasksLoading ? (
@@ -420,14 +684,12 @@ function ManageAllTasks() {
                 </p>
               </div>
             ) : isMobile ? (
-              // Mobile View - Cards
               <div className="space-y-4">
                 {tasks.map((task) => (
-                  <TaskCard key={task._id} task={task} />
+                  <TaskCard key={task._id || task.id} task={task} />
                 ))}
               </div>
             ) : (
-              // Desktop View - Table
               <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full table-auto">
@@ -443,7 +705,7 @@ function ManageAllTasks() {
                     <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                       {tasks.map((task) => (
                         <tr
-                          key={task._id}
+                          key={task._id || task.id}
                           className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                         >
                           <td className="p-4">
@@ -500,7 +762,7 @@ function ManageAllTasks() {
           </>
         )}
 
-        {/* Tickets Content */}
+        {/* Tickets content */}
         {activeTab === "tickets" && (
           <>
             {ticketsLoading ? (
@@ -519,20 +781,22 @@ function ManageAllTasks() {
                   No tickets found
                 </p>
                 <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
-                  Support tickets will appear here when they are created
+                  {userRole === "member"
+                    ? "You have no tickets assigned to you."
+                    : "Support tickets will appear here when they are created"}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {tickets.map((ticket) => (
-                  <TicketCard key={ticket._id} ticket={ticket} />
+                  <TicketCard key={ticket._id || ticket.id} ticket={ticket} />
                 ))}
               </div>
             )}
           </>
         )}
 
-        {/* Enhanced Confirmation Modal */}
+        {/* Delete confirmation modal */}
         {showDeleteModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
             <div className="bg-white dark:bg-slate-900 rounded-xl max-w-md w-full shadow-xl">
@@ -608,10 +872,8 @@ function ManageAllTasks() {
           </div>
         )}
 
-     
+        <ToastContainer position="top-right" />
       </div>
-      
-
     </div>
   );
 }

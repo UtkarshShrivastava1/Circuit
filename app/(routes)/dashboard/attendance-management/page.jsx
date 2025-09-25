@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
@@ -12,6 +12,7 @@ import "react-toastify/dist/ReactToastify.css";
  * - No socket.io / webpush dependencies
  * - Local notifications via toast + in-page messages
  * - Prevents rapid duplicate attendance requests
+ * - Adds 10s auto-refresh polling per active tab
  */
 
 export default function AttendancePage() {
@@ -44,6 +45,9 @@ export default function AttendancePage() {
   // Prevent duplicate requests
   const [pendingRequest, setPendingRequest] = useState(null);
 
+  // Polling ref so cleanup works reliably
+  const pollRef = useRef(null);
+
   useEffect(() => {
     setIsLoading(true);
     async function bootstrap() {
@@ -71,7 +75,6 @@ export default function AttendancePage() {
         headers: token ? { authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        // clear local attendance view on 401/404
         setAttendanceStatus(null);
         setLastDate(null);
         return;
@@ -248,16 +251,73 @@ export default function AttendancePage() {
     }
   };
 
+  // initial per-tab fetch effect
   useEffect(() => {
-    if (activeTab === "mark") fetchMyAttendance();
-    if (activeTab === "approve") {
+    if (activeTab === "mark") {
+      fetchMyAttendance();
+    } else if (activeTab === "approve") {
       fetchPending();
       fetchSummary();
+    } else if (activeTab === "report") {
+      fetchReport();
     }
-    if (activeTab === "report") fetchReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTab,
+    // Also refetch report when filters change
+    filters.startDate,
+    filters.endDate,
+    filters.status,
+    filters.userId,
+  ]);
+
+  // Poller: refresh current-tab data every 10 seconds
+  useEffect(() => {
+    // clear existing poll if any
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
+    const startPoll = () => {
+      // Run immediately once
+      if (activeTab === "mark") {
+        fetchMyAttendance();
+      } else if (activeTab === "approve") {
+        fetchPending();
+        fetchSummary();
+      } else if (activeTab === "report") {
+        fetchReport();
+      }
+
+      // Then set interval
+      pollRef.current = setInterval(() => {
+        // call only the minimal fetchers required for the current tab
+        if (activeTab === "mark") {
+          fetchMyAttendance();
+        } else if (activeTab === "approve") {
+          fetchPending();
+          fetchSummary();
+        } else if (activeTab === "report") {
+          // for report, only refetch when at least one filter is present or user explicitly opened report
+          fetchReport();
+        }
+      }, 10000); // 10 seconds
+    };
+
+    // start poll only when we have a known userRole (avoids polling unauthenticated)
+    if (userRole !== null) startPoll();
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeTab,
+    userRole,
     filters.startDate,
     filters.endDate,
     filters.status,
@@ -489,7 +549,7 @@ export default function AttendancePage() {
                       Approve
                     </button>
                     <button
-                      onClick={() => handleAction(req._id, "reject")}
+                      onClick={() => handleAction(req._1d, "reject")}
                       className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm whitespace-nowrap"
                     >
                       Reject
