@@ -1,66 +1,144 @@
+// app/(routes)/attendance/route.js  (or wherever your route lives)
 import { NextResponse } from "next/server";
+import { cookies as nextCookies } from "next/headers";
 import dbConnect from "@/lib/mongodb";
 import Attendance from "@/app/models/Attendance";
 import User from "@/app/models/User";
 import { verifyToken } from "@/lib/auth";
 
+function toISODateString(d) {
+  const dt = new Date(d);
+  dt.setHours(0, 0, 0, 0);
+  return dt.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+/**
+ * Build an inclusive start/end date range from either:
+ *  - days=n   (last n days, ending today)
+ *  - startDate & endDate (ISO strings)
+ */
+function getDateRange(searchParams) {
+  const days = searchParams.get("days");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
+
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  const n = Number(days) || 30;
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(end);
+  start.setDate(end.getDate() - (n - 1));
+  start.setHours(0, 0, 0, 0);
+  return { start, end };
+}
+
 export async function GET(req) {
   try {
     await dbConnect();
 
-    // Auth
+    // --- auth: accept Authorization header OR token cookie ---
+    let token = null;
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const token = authHeader.split(" ")[1];
-    const decoded = verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-
-    // Get current user
-    const currentUser = await User.findById(decoded.id);
-    if (!currentUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-    // Parse filters
-    const { searchParams } = new URL(req.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const userId = searchParams.get("userId");
-    const status = searchParams.get("status");
-
-    let filters = {};
-
-    // Date filter
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      filters.date = { $gte: start, $lte: end };
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else {
+      // read cookie token (server runtime)
+      try {
+        const ck = nextCookies().get("token");
+        if (ck) token = ck.value;
+      } catch (e) {
+        // nextCookies available only in certain contexts; ignore if not
+      }
     }
 
-    // User filter (if provided)
-    if (userId) {
-      filters.userId = userId;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    // Get current user (to enforce member restrictions)
+    const currentUser = await User.findById(decoded.id).select("_id role");
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Parse filters and build mongo filters
+    const { searchParams } = new URL(req.url);
+    const { start, end } = getDateRange(searchParams);
+    const userIdParam = searchParams.get("userId");
+    const status = searchParams.get("status"); // approvalStatus filter optional
+    const fillMissing = searchParams.get("fillMissing") === "1"; // optional: return continuous days
+
+    const filters = {
+      date: { $gte: start, $lte: end },
+    };
+
+    if (userIdParam) {
+      filters.userId = userIdParam;
     } else if (currentUser.role === "member") {
-      // Member can only see own records
       filters.userId = currentUser._id;
     }
-    // Admin & manager can see all records unless filtered
-
-    // Status filter
     if (status) {
       filters.approvalStatus = status;
     }
 
-    // Fetch attendance
-    const report = await Attendance.find(filters)
-      .populate("userId", "name email role")
-      .populate("approvedBy", "name role")
-      .sort({ date: -1 })
-      .select("date approvalStatus workMode userId approvedBy");
+    // Fetch attendance documents (sorted ascending date so chart flows left->right)
+    const docs = await Attendance.find(filters)
+      .sort({ date: 1 })
+      .select("date status workMode");
 
-    return NextResponse.json(report);
+    // Map documents into a date-keyed map for easy lookup
+    const map = {};
+    docs.forEach((d) => {
+      const iso = toISODateString(d.date);
+      // Derive numeric flags:
+      // present = status === 'present' ? 1 : 0
+      // office/wfh based on workMode (if present only)
+      const present = d.status === "present" ? 1 : 0;
+      const wfh = present && d.workMode === "wfh" ? 1 : 0;
+      const office = present && d.workMode === "office" ? 1 : 0;
+      map[iso] = { date: iso, present, wfh, office };
+    });
+
+    // Build the result array
+    const result = [];
+
+    if (fillMissing) {
+      // create continuous date range array from start -> end
+      const cur = new Date(start);
+      while (cur <= end) {
+        const iso = toISODateString(cur);
+        if (map[iso]) {
+          result.push(map[iso]);
+        } else {
+          result.push({ date: iso, present: 0, wfh: 0, office: 0 });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    } else {
+      // Only return days that exist in DB (sorted)
+      Object.keys(map)
+        .sort()
+        .forEach((k) => result.push(map[k]));
+    }
+
+    return NextResponse.json({ data: result });
   } catch (err) {
     console.error("Attendance Report error:", err);
-    return NextResponse.json({ message: err.message }, { status: 500 });
+    return NextResponse.json(
+      { message: err.message || "Server error" },
+      { status: 500 }
+    );
   }
 }

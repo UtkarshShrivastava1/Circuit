@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { format } from "date-fns";
-import * as XLSX from "xlsx";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import * as XLSX from "xlsx";
 
 /**
  * AttendancePage
@@ -549,7 +549,7 @@ export default function AttendancePage() {
                       Approve
                     </button>
                     <button
-                      onClick={() => handleAction(req._1d, "reject")}
+                      onClick={() => handleAction(req._id, "reject")}
                       className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm whitespace-nowrap"
                     >
                       Reject
