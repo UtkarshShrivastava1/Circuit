@@ -1,10 +1,10 @@
 // app/(routes)/attendance/route.js  (or wherever your route lives)
-import { NextResponse } from "next/server";
-import { cookies as nextCookies } from "next/headers";
-import dbConnect from "@/lib/mongodb";
 import Attendance from "@/app/models/Attendance";
 import User from "@/app/models/User";
 import { verifyToken } from "@/lib/auth";
+import dbConnect from "@/lib/mongodb";
+import { cookies as nextCookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 function toISODateString(d) {
   const dt = new Date(d);
@@ -23,19 +23,18 @@ function getDateRange(searchParams) {
   const endDate = searchParams.get("endDate");
 
   if (startDate && endDate) {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    // Parse as UTC dates to avoid timezone issues
+    const start = new Date(`${startDate}T00:00:00Z`);
+    const end = new Date(`${endDate}T23:59:59.999Z`);
     return { start, end };
   }
 
   const n = Number(days) || 30;
   const end = new Date();
-  end.setHours(23, 59, 59, 999);
+  end.setUTCHours(23, 59, 59, 999);
   const start = new Date(end);
-  start.setDate(end.getDate() - (n - 1));
-  start.setHours(0, 0, 0, 0);
+  start.setUTCDate(end.getUTCDate() - (n - 1));
+  start.setUTCHours(0, 0, 0, 0);
   return { start, end };
 }
 

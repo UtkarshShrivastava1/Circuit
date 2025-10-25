@@ -220,7 +220,8 @@ export default function AttendancePage() {
         params,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      setReport(res.data || []);
+      // The API returns { data: [...] }, so we need to access res.data.data
+      setReport(res.data.data || []);
     } catch (err) {
       console.error("fetchReport error:", err);
       setReport([]);
