@@ -7,9 +7,11 @@ import { cookies as nextCookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 function toISODateString(d) {
-  const dt = new Date(d);
-  dt.setHours(0, 0, 0, 0);
-  return dt.toISOString().slice(0, 10); // YYYY-MM-DD
+  const date = new Date(d);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -23,18 +25,17 @@ function getDateRange(searchParams) {
   const endDate = searchParams.get("endDate");
 
   if (startDate && endDate) {
-    // Parse as UTC dates to avoid timezone issues
-    const start = new Date(`${startDate}T00:00:00Z`);
-    const end = new Date(`${endDate}T23:59:59.999Z`);
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T23:59:59.999");
     return { start, end };
   }
 
   const n = Number(days) || 30;
   const end = new Date();
-  end.setUTCHours(23, 59, 59, 999);
+  end.setHours(23, 59, 59, 999);
   const start = new Date(end);
-  start.setUTCDate(end.getUTCDate() - (n - 1));
-  start.setUTCHours(0, 0, 0, 0);
+  start.setDate(end.getDate() - (n - 1));
+  start.setHours(0, 0, 0, 0);
   return { start, end };
 }
 
